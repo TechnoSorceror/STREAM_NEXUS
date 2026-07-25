@@ -1,0 +1,6 @@
+{
+  "name": "StreamNexus",
+  "description": "A metadata-driven media aggregation platform integrating TMDB, AniList, and VidSrc for a seamless discovery and embed streaming experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
