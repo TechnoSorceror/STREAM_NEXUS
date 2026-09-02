@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Film } from 'lucide-react';
+import { AlertCircle, Film, RefreshCcw } from 'lucide-react';
 import { tmdbService } from '../services/tmdb';
 import { MediaItem } from '../types';
 import Row from '../components/Row';
 import Loader from '../components/Loader';
 import GenreFilter from '../components/GenreFilter';
 import MediaCard from '../components/MediaCard';
+import Seo, { SITE_NAME, toAbsoluteSiteUrl } from '../components/Seo';
+import { mediaPath } from '../lib/routes';
 
 const Movies: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -20,24 +22,41 @@ const Movies: React.FC = () => {
   const [rating, setRating] = useState(initialRating);
   const [filtered, setFiltered] = useState<MediaItem[]>([]);
   const [data, setData] = useState<Record<string, MediaItem[]>>({});
+  const [warning, setWarning] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
+  const isFiltered = genre !== null || Boolean(year) || rating > 0;
+  const schema = useMemo(() => ({
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'CollectionPage', name: 'Movies', url: toAbsoluteSiteUrl('/movies'), description: 'Browse current, popular, highly rated, Hindi-language, and genre-based movies.' },
+      ...(data.trending?.length ? [{ '@type': 'ItemList', itemListElement: data.trending.slice(0, 20).map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.title, url: toAbsoluteSiteUrl(mediaPath(item)) })) }] : [])
+    ]
+  }), [data.trending]);
 
   useEffect(() => {
     let active = true;
     (async () => {
       setLoading(true);
-      try {
-        const [trending, newMovies, bollywood, popular, topRated, action, comedy, horror, romance, scifi] = await Promise.all([
-          tmdbService.getTrending('movie'), tmdbService.getByYear('movie', new Date().getFullYear()),
-          tmdbService.getByLanguage('movie', 'hi'), tmdbService.getPopular('movie'),
-          tmdbService.getTopRated('movie'), tmdbService.getByGenre('movie', 28),
-          tmdbService.getByGenre('movie', 35), tmdbService.getByGenre('movie', 27),
-          tmdbService.getByGenre('movie', 10749), tmdbService.getByGenre('movie', 878)
-        ]);
-        if (active) setData({ trending, newMovies, bollywood, popular, topRated, action, comedy, horror, romance, scifi });
-      } finally { if (active) setLoading(false); }
+      setWarning('');
+      const keys = ['trending', 'newMovies', 'bollywood', 'popular', 'topRated', 'action', 'comedy', 'horror', 'romance', 'scifi'];
+      const settled = await Promise.allSettled([
+        tmdbService.getTrending('movie'), tmdbService.getByYear('movie', new Date().getFullYear()),
+        tmdbService.getByLanguage('movie', 'hi'), tmdbService.getPopular('movie'),
+        tmdbService.getTopRated('movie'), tmdbService.getByGenre('movie', 28),
+        tmdbService.getByGenre('movie', 35), tmdbService.getByGenre('movie', 27),
+        tmdbService.getByGenre('movie', 10749), tmdbService.getByGenre('movie', 878)
+      ]);
+      if (!active) return;
+      const next: Record<string, MediaItem[]> = {};
+      settled.forEach((result, index) => { if (result.status === 'fulfilled') next[keys[index]] = result.value; });
+      setData(previous => ({ ...previous, ...next }));
+      const failures = settled.filter(result => result.status === 'rejected').length;
+      if (failures === settled.length) setWarning('The movie catalog could not be refreshed.');
+      else if (failures) setWarning('Some movie rows are temporarily unavailable.');
+      setLoading(false);
     })();
     return () => { active = false; };
-  }, []);
+  }, [retryKey]);
 
   useEffect(() => {
     const params: Record<string, string> = {};
@@ -61,20 +80,21 @@ const Movies: React.FC = () => {
       try {
         const items = await tmdbService.getByGenre('movie', genre, year, rating);
         if (active) setFiltered(items);
-      } finally { if (active) setLoading(false); }
+      } catch { if (active) setWarning('The selected movie filters could not be loaded.'); }
+      finally { if (active) setLoading(false); }
     }, 250);
     return () => { active = false; window.clearTimeout(timer); };
   }, [genre, year, rating]);
 
-  if (loading && genre === null) return <Loader page label="Opening the film archive" />;
-
   return (
     <div className="browse-page shell">
+      <Seo title={`Movies: Cast, Trailers & Release Details | ${SITE_NAME}`} description="Browse current, popular, highly rated, Hindi-language, and genre-based movies with story, cast, trailer, and release information." path="/movies" robots={isFiltered ? 'noindex,follow' : undefined} jsonLd={isFiltered ? undefined : schema} />
       <header className="browse-header">
         <div><div className="eyebrow"><Film size={13} /> Film archive</div><h1>Movies</h1><p>Big releases, quiet masterpieces, and everything between.</p></div>
         <div className="archive-count">CURATED DAILY</div>
       </header>
       <GenreFilter type="movie" selectedGenreId={genre} onSelectGenre={setGenre} />
+      {warning && <div className="catalog-warning" role="status"><AlertCircle size={17} /><span>{warning}</span><button onClick={() => setRetryKey(key => key + 1)}><RefreshCcw size={14} /> Retry</button></div>}
       {genre !== null ? (
         <section className="filtered-section">
           <div className="filter-bar">
@@ -85,6 +105,7 @@ const Movies: React.FC = () => {
         </section>
       ) : (
         <div className="browse-rows">
+          {loading && <Loader label="Opening the film archive" />}
           <Row title="Trending now" kicker="The films moving culture" items={data.trending} featured />
           <Row title="Fresh arrivals" kicker="New this year" items={data.newMovies} />
           <Row title="Hindi cinema" kicker="Bollywood and beyond" items={data.bollywood} />

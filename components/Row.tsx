@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight, ArrowUp } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { MediaItem } from '../types';
 import MediaCard from './MediaCard';
 
@@ -26,7 +26,6 @@ const Row: React.FC<Props> = ({
   explorePath
 }) => {
   const rail = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!items.length) return null;
@@ -40,9 +39,7 @@ const Row: React.FC<Props> = ({
   const handleExploreClick = () => {
     if (onExplore) {
       onExplore();
-    } else if (explorePath) {
-      navigate(explorePath);
-    } else {
+    } else if (!explorePath) {
       setIsExpanded(!isExpanded);
     }
   };
@@ -65,7 +62,7 @@ const Row: React.FC<Props> = ({
               </button>
             </>
           )}
-          <button className="explore" onClick={handleExploreClick}>
+          {explorePath && !isExpanded ? <Link className="explore" to={explorePath}>Explore <ArrowRight size={15} /></Link> : <button className="explore" onClick={handleExploreClick}>
             {isExpanded ? (
               <>
                 Collapse <ArrowUp size={15} />
@@ -75,7 +72,7 @@ const Row: React.FC<Props> = ({
                 Explore <ArrowRight size={15} />
               </>
             )}
-          </button>
+          </button>}
         </div>
       </header>
 

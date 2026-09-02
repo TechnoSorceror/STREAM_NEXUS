@@ -1,8 +1,17 @@
 export type MediaType = 'movie' | 'tv' | 'anime' | 'manga';
 
+export interface PersonCredit {
+  id: number;
+  name: string;
+  role?: string;
+  profile?: string;
+}
+
 export interface MediaItem {
   id: string | number;
   tmdbId?: number;
+  tmdbMediaType?: 'movie' | 'tv';
+  tmdbSeason?: number;
   imdbId?: string;
   anilistId?: number;
   title: string;
@@ -14,6 +23,24 @@ export interface MediaItem {
   type: MediaType;
   genres: string[];
   status?: string;
+  format?: string;
+  romajiTitle?: string;
+  nativeTitle?: string;
+  synonyms?: string[];
+  season?: string;
+  seasonYear?: number;
+  countryOfOrigin?: string;
+  duration?: number;
+  studios?: string[];
+  originalLanguage?: string;
+  originCountries?: string[];
+  runtime?: number;
+  tagline?: string;
+  ageRating?: string;
+  directors?: PersonCredit[];
+  creators?: PersonCredit[];
+  cast?: PersonCredit[];
+  voteCount?: number;
   // TV specific
   seasons?: number; // Total number of seasons
   episodes?: number; // Total episodes (or per season count in some contexts)
@@ -31,6 +58,18 @@ export interface MediaItem {
     chapter?: number;
   };
   trailerUrl?: string;
+}
+
+export interface PersonDetails {
+  id: number;
+  name: string;
+  biography: string;
+  birthday?: string;
+  deathday?: string;
+  placeOfBirth?: string;
+  knownFor?: string;
+  profile?: string;
+  credits: MediaItem[];
 }
 
 export interface SeasonInfo {

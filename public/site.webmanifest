@@ -1,0 +1,18 @@
+{
+  "name": "StreamNexus",
+  "short_name": "StreamNexus",
+  "description": "Movie, TV-show, and anime discovery with personal watchlists.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080912",
+  "theme_color": "#080912",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

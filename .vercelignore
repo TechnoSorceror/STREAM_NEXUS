@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.netlify
+.vercel
+dist
+artifacts
+migrated_prompt_history
+all_source_code.txt
+add_autoplay.py
+fix_*.py
+rewrite.py
+update_tmdb_proxy.py

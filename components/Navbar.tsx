@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Bookmark,
@@ -12,7 +12,10 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { tmdbService } from '../services/tmdb';
+import { anilistService } from '../services/anilist';
 import { MediaItem } from '../types';
+import { mediaPath } from '../lib/routes';
+import { posterSrc, posterSrcSet } from '../lib/images';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -24,13 +27,17 @@ const Navbar: React.FC = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
+  const searchPanel = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
 
-  const searchType = () =>
+  const searchType = useCallback(() =>
     location.pathname.startsWith('/movies') || searchParams.get('t') === 'movie'
       ? 'movie'
       : location.pathname.startsWith('/tv-shows') || searchParams.get('t') === 'tv'
         ? 'tv'
-        : 'media';
+        : location.pathname.startsWith('/anime') || searchParams.get('t') === 'anime'
+          ? 'anime'
+        : 'media', [location.pathname, searchParams]);
 
   const active = (path: string) =>
     path === '/' ? location.pathname === path : location.pathname.startsWith(path);
@@ -59,8 +66,19 @@ const Navbar: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (searchOpen) window.setTimeout(() => searchInput.current?.focus(), 80);
-    else setQuery('');
+    if (!searchOpen) { setQuery(''); return; }
+    previousFocus.current = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    const background = [document.querySelector('main'), document.querySelector('.site-footer')].filter(Boolean) as HTMLElement[];
+    document.body.style.overflow = 'hidden';
+    background.forEach(element => element.setAttribute('inert', ''));
+    const timer = window.setTimeout(() => searchInput.current?.focus(), 50);
+    return () => {
+      window.clearTimeout(timer);
+      document.body.style.overflow = previousOverflow;
+      background.forEach(element => element.removeAttribute('inert'));
+      previousFocus.current?.focus();
+    };
   }, [searchOpen]);
 
   useEffect(() => {
@@ -72,21 +90,25 @@ const Navbar: React.FC = () => {
     let live = true;
     const timer = window.setTimeout(async () => {
       setSearching(true);
-      const type = searchType();
-      const result =
-        type === 'media'
-          ? await tmdbService.searchMulti(query)
-          : await tmdbService.search(query, type);
-      if (live) {
-        setSuggestions(result.slice(0, 7));
-        setSearching(false);
+      try {
+        const type = searchType();
+        const result = type === 'media'
+          ? (await Promise.allSettled([tmdbService.searchMulti(query), anilistService.search(query, 'anime')])).flatMap(item => item.status === 'fulfilled' ? item.value : [])
+          : type === 'anime'
+            ? await anilistService.search(query, 'anime')
+            : await tmdbService.search(query, type);
+        if (live) setSuggestions(result.slice(0, 7));
+      } catch {
+        if (live) setSuggestions([]);
+      } finally {
+        if (live) setSearching(false);
       }
     }, 240);
     return () => {
       live = false;
       window.clearTimeout(timer);
     };
-  }, [query, location.pathname]);
+  }, [query, searchType]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -97,10 +119,20 @@ const Navbar: React.FC = () => {
 
   const pick = () => setSearchOpen(false);
 
+  const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusable = [...(searchPanel.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  };
+
   const mobileItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/movies', label: 'Movies', icon: Clapperboard },
-    { path: '/search', label: 'Search', icon: Search, action: true },
+    { path: '/anime', label: 'Anime', icon: Sparkles },
     { path: '/tv-shows', label: 'Series', icon: Tv },
     { path: '/my-list', label: 'My list', icon: Bookmark }
   ];
@@ -115,18 +147,19 @@ const Navbar: React.FC = () => {
           </Link>
 
           <div className="desktop-links">
-            <Link className={active('/') ? 'active' : ''} to="/">Discover</Link>
-            <Link className={active('/movies') ? 'active' : ''} to="/movies">Movies</Link>
-            <Link className={active('/tv-shows') ? 'active' : ''} to="/tv-shows">Series</Link>
+            <Link className={active('/') ? 'active' : ''} aria-current={active('/') ? 'page' : undefined} to="/">Discover</Link>
+            <Link className={active('/movies') ? 'active' : ''} aria-current={active('/movies') ? 'page' : undefined} to="/movies">Movies</Link>
+            <Link className={active('/tv-shows') ? 'active' : ''} aria-current={active('/tv-shows') ? 'page' : undefined} to="/tv-shows">Series</Link>
+            <Link className={active('/anime') ? 'active' : ''} aria-current={active('/anime') ? 'page' : undefined} to="/anime">Anime</Link>
           </div>
 
           <div className="nav-actions">
             <button className="search-trigger" onClick={() => setSearchOpen(true)} aria-label="Search the catalog">
               <Search size={17} />
-              <span>Search movies &amp; series</span>
+              <span>Search movies, series &amp; anime</span>
               <kbd>⌘ K</kbd>
             </button>
-            <Link to="/my-list" className={`saved-link ${active('/my-list') ? 'active' : ''}`}>
+            <Link to="/my-list" aria-current={active('/my-list') ? 'page' : undefined} className={`saved-link ${active('/my-list') ? 'active' : ''}`}>
               <Bookmark size={17} />
               <span>My list</span>
             </Link>
@@ -140,16 +173,8 @@ const Navbar: React.FC = () => {
       <nav className="mobile-dock" aria-label="Mobile navigation">
         {mobileItems.map(item => {
           const Icon = item.icon;
-          if (item.action) {
-            return (
-              <button key={item.label} onClick={() => setSearchOpen(true)} aria-label="Open search">
-                <span><Icon size={20} /></span>
-                <small>{item.label}</small>
-              </button>
-            );
-          }
           return (
-            <Link key={item.path} to={item.path} className={active(item.path) ? 'active' : ''}>
+            <Link key={item.path} to={item.path} aria-current={active(item.path) ? 'page' : undefined} className={active(item.path) ? 'active' : ''}>
               <span><Icon size={19} /></span>
               <small>{item.label}</small>
             </Link>
@@ -164,9 +189,10 @@ const Navbar: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onMouseDown={() => setSearchOpen(false)}
+            onMouseDown={event => { if (event.target === event.currentTarget) setSearchOpen(false); }}
           >
             <motion.div
+              ref={searchPanel}
               className="command-panel"
               role="dialog"
               aria-modal="true"
@@ -176,6 +202,7 @@ const Navbar: React.FC = () => {
               exit={{ opacity: 0, y: -10, scale: .985 }}
               transition={{ duration: .24, ease: [0.16, 1, 0.3, 1] }}
               onMouseDown={event => event.stopPropagation()}
+              onKeyDown={trapFocus}
             >
               <form className="command-input" onSubmit={submit}>
                 <Search size={22} />
@@ -183,7 +210,7 @@ const Navbar: React.FC = () => {
                   ref={searchInput}
                   value={query}
                   onChange={event => setQuery(event.target.value)}
-                  placeholder="Search for a movie or series…"
+                  placeholder="Search movies, series, or anime…"
                   aria-label="Search catalog"
                 />
                 <button type="button" onClick={() => setSearchOpen(false)} aria-label="Close search"><X size={18} /></button>
@@ -199,18 +226,18 @@ const Navbar: React.FC = () => {
                   <div className="command-results">
                     <div className="command-label">Top matches</div>
                     {suggestions.map(item => (
-                      <Link key={`${item.type}-${item.id}`} to={`/${item.type}/${item.id}`} onClick={pick}>
-                        <img src={item.poster} alt="" />
+                      <Link key={`${item.type}-${item.id}`} to={mediaPath(item)} onClick={pick}>
+                        <img src={posterSrc(item.poster)} srcSet={posterSrcSet(item.poster)} sizes="42px" width="42" height="63" alt="" loading="lazy" decoding="async" />
                         <span>
                           <b>{item.title}</b>
-                          <small>{item.type === 'tv' ? 'Series' : 'Movie'} · {item.releaseDate?.slice(0, 4) || 'TBA'}</small>
+                          <small>{item.type === 'tv' ? 'Series' : item.type === 'anime' ? 'Anime' : 'Movie'} · {item.releaseDate?.slice(0, 4) || 'TBA'}</small>
                         </span>
                         <em><Star size={12} fill="currentColor" /> {item.rating?.toFixed(1) || 'NR'}</em>
                       </Link>
                     ))}
                   </div>
                 ) : (
-                  <div className="search-empty"><div><b>{searching ? 'Searching the archive…' : 'No title found'}</b><small>{searching ? 'Matching titles across movies and series.' : 'Try another title or check the spelling.'}</small></div></div>
+                  <div className="search-empty"><div><b>{searching ? 'Searching the archive…' : 'No title found'}</b><small>{searching ? 'Matching titles across the catalog.' : 'Try another title or check the spelling.'}</small></div></div>
                 )}
               </div>
 

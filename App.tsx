@@ -1,20 +1,27 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion, useScroll, useSpring } from 'motion/react';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'motion/react';
 import { ArrowUpRight } from 'lucide-react';
 import Navbar from './components/Navbar';
-import Home from './pages/Home';
-import Movies from './pages/Movies';
-import TVShows from './pages/TVShows';
-import Details from './pages/Details';
-import SearchPage from './pages/Search';
-import MyList from './pages/MyList';
-import OnboardingModal from './components/OnboardingModal';
+import Loader from './components/Loader';
+
+const Home = lazy(() => import('./pages/Home'));
+const Movies = lazy(() => import('./pages/Movies'));
+const TVShows = lazy(() => import('./pages/TVShows'));
+const Anime = lazy(() => import('./pages/Anime'));
+const Details = lazy(() => import('./pages/Details'));
+const SearchPage = lazy(() => import('./pages/Search'));
+const MyList = lazy(() => import('./pages/MyList'));
+const GenreLanding = lazy(() => import('./pages/GenreLanding'));
+const PersonPage = lazy(() => import('./pages/Person'));
+const InformationPage = lazy(() => import('./pages/Information'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 const AppContent: React.FC = () => {
   const location = useLocation();
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 150, damping: 28, restDelta: .001 });
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -22,29 +29,43 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <motion.div className="scroll-progress" style={{ scaleX }} />
       <Navbar />
-      <main>
+      <main id="main-content">
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${location.pathname}${location.search}`}
+            key={location.pathname}
             className="route-stage"
-            initial={{ opacity: 0, y: 10 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: .32, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduceMotion ? 0 : .32, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Routes location={location}>
-              <Route path="/" element={<Home />} />
-              <Route path="/movies" element={<Movies />} />
-              <Route path="/tv-shows" element={<TVShows />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/my-list" element={<MyList />} />
-              <Route path="/movie/:id" element={<Details />} />
-              <Route path="/tv/:id" element={<Details />} />
-              <Route path="/anime/:id" element={<Details />} />
-              <Route path="/manga/:id" element={<Details />} />
-            </Routes>
+            <Suspense fallback={<Loader page label="Loading page" />}>
+              <Routes location={location}>
+                <Route path="/" element={<Home />} />
+                <Route path="/movies" element={<Movies />} />
+                <Route path="/movies/genre/:slug" element={<GenreLanding type="movie" />} />
+                <Route path="/tv-shows" element={<TVShows />} />
+                <Route path="/tv-shows/genre/:slug" element={<GenreLanding type="tv" />} />
+                <Route path="/anime" element={<Anime />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/my-list" element={<MyList />} />
+                <Route path="/movie/:id" element={<Details />} />
+                <Route path="/tv/:id" element={<Details />} />
+                <Route path="/anime/:id" element={<Details />} />
+                <Route path="/manga/:id" element={<Details />} />
+                <Route path="/person/:identifier" element={<PersonPage />} />
+                <Route path="/about" element={<InformationPage page="about" />} />
+                <Route path="/contact" element={<InformationPage page="contact" />} />
+                <Route path="/privacy" element={<InformationPage page="privacy" />} />
+                <Route path="/terms" element={<InformationPage page="terms" />} />
+                <Route path="/copyright" element={<InformationPage page="copyright" />} />
+                <Route path="/editorial-policy" element={<InformationPage page="editorial-policy" />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
@@ -55,16 +76,15 @@ const AppContent: React.FC = () => {
             <div><strong>StreamNexus</strong><small>Your universe of stories.</small></div>
           </div>
           <p>Explore films and series, build your watchlist, and pick up exactly where you left off.</p>
-          <a href="#top" onClick={event => { event.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+          <button type="button" className="footer-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             Back to top <ArrowUpRight size={14} />
-          </a>
+          </button>
         </div>
         <div className="shell footer-bottom">
-          <span>Powered by TMDB metadata</span>
+          <nav aria-label="Site information"><Link to="/about">About</Link><Link to="/editorial-policy">Editorial policy</Link><Link to="/contact">Contact</Link><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><Link to="/copyright">Copyright</Link></nav>
           <span>Designed for every screen · 2026</span>
         </div>
       </footer>
-      <OnboardingModal />
     </div>
   );
 };

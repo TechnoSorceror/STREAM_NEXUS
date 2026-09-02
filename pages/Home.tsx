@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Bookmark, ChevronLeft, ChevronRight, Info, Pause, Play, Sparkles } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { Link } from 'react-router-dom';
+import { AlertCircle, ArrowRight, Bookmark, ChevronLeft, ChevronRight, Info, Pause, Play, RefreshCcw, Sparkles } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { tmdbService } from '../services/tmdb';
-import { vidsrcService } from '../services/vidsrc';
 import { MediaItem } from '../types';
 import Row from '../components/Row';
-import Loader from '../components/Loader';
 import { getWatchProgressList, removeWatchProgress } from '../lib/watchProgress';
 import { mcuData } from '../src/data/mcu';
 import { addToMyList, isInMyList, removeFromMyList } from '../lib/myList';
+import Seo, { SITE_NAME, toAbsoluteSiteUrl } from '../components/Seo';
+import { mediaPath } from '../lib/routes';
+import { getBootstrapData } from '../lib/bootstrap';
+import { backdropSrc, backdropSrcSet } from '../lib/images';
 
 interface HomeData {
   latestMovies: MediaItem[];
@@ -29,14 +31,18 @@ const emptyData: HomeData = {
 };
 
 const Home: React.FC = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<HomeData>(emptyData);
-  const [heroItems, setHeroItems] = useState<MediaItem[]>([]);
+  const bootstrapTrending = useMemo(() => getBootstrapData().home?.trendingMovies || [], []);
+  const [loading, setLoading] = useState(!bootstrapTrending.length);
+  const [data, setData] = useState<HomeData>(() => ({ ...emptyData, trendingMovies: bootstrapTrending }));
+  const [heroItems, setHeroItems] = useState<MediaItem[]>(() => bootstrapTrending.slice(0, 4));
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const [continueWatching, setContinueWatching] = useState<MediaItem[]>([]);
   const [heroPaused, setHeroPaused] = useState(false);
   const [heroSaved, setHeroSaved] = useState(false);
+  const [catalogWarning, setCatalogWarning] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
+  const [pageVisible, setPageVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
+  const reduceMotion = useReducedMotion();
 
   const mcuItems = useMemo(() => {
     return mcuData;
@@ -52,38 +58,55 @@ const Home: React.FC = () => {
   useEffect(() => { refreshContinueWatching(); }, [refreshContinueWatching]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const [latestMovies, latestTv, trendingMovies, trendingTv, topRatedMovies, popularTv, actionMovies, scifiMovies, dramaMovies] = await Promise.all([
-          vidsrcService.getLatestMovies(1), vidsrcService.getLatestTvShows(1),
-          tmdbService.getTrending('movie'), tmdbService.getTrending('tv'),
-          tmdbService.getTopRated('movie'), tmdbService.getPopular('tv'),
-          tmdbService.getByGenre('movie', 28), tmdbService.getByGenre('movie', 878),
-          tmdbService.getByGenre('movie', 18)
-        ]);
-        if (!active) return;
-        const next = { latestMovies, latestTv, trendingMovies, trendingTv, topRatedMovies, popularTv, actionMovies, scifiMovies, dramaMovies };
-        setData(next);
-        setHeroItems([...trendingMovies.slice(0, 4), ...trendingTv.slice(0, 2)]);
-      } catch (error) {
-        console.error('Home fetch error', error);
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => { active = false; };
+    const onVisibilityChange = () => setPageVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
   useEffect(() => {
-    if (heroItems.length < 2 || heroPaused) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      setCatalogWarning('');
+      const currentYear = new Date().getFullYear();
+      const keys = ['latestMovies', 'latestTv', 'trendingMovies', 'trendingTv', 'topRatedMovies', 'popularTv', 'actionMovies', 'scifiMovies', 'dramaMovies'] as const;
+      const requests = [
+        tmdbService.getByYear('movie', currentYear), tmdbService.getByYear('tv', currentYear),
+        bootstrapTrending.length ? Promise.resolve(bootstrapTrending) : tmdbService.getTrending('movie'), tmdbService.getTrending('tv'),
+        tmdbService.getTopRated('movie'), tmdbService.getPopular('tv'),
+        tmdbService.getByGenre('movie', 28), tmdbService.getByGenre('movie', 878), tmdbService.getByGenre('movie', 18)
+      ];
+      const settled = await Promise.allSettled(requests);
+      if (!active) return;
+      const next: Partial<HomeData> = {};
+      settled.forEach((result, index) => { if (result.status === 'fulfilled') next[keys[index]] = result.value; });
+      setData(previous => ({ ...previous, ...next }));
+      const nextTrendingMovies = next.trendingMovies || bootstrapTrending;
+      const nextTrendingTv = next.trendingTv || [];
+      if (nextTrendingMovies.length || nextTrendingTv.length) setHeroItems([...nextTrendingMovies.slice(0, 4), ...nextTrendingTv.slice(0, 2)]);
+      const failures = settled.filter(result => result.status === 'rejected').length;
+      if (failures === settled.length) setCatalogWarning('The live catalog could not be refreshed. Cached highlights remain available.');
+      else if (failures) setCatalogWarning('A few catalog rows are temporarily unavailable. The rest loaded normally.');
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, [bootstrapTrending, retryKey]);
+
+  useEffect(() => {
+    if (heroItems.length < 2 || heroPaused || reduceMotion || !pageVisible) return;
     const timer = window.setInterval(() => setActiveHeroIndex(i => (i + 1) % heroItems.length), 9000);
     return () => window.clearInterval(timer);
-  }, [heroItems.length, heroPaused]);
+  }, [heroItems.length, heroPaused, pageVisible, reduceMotion]);
 
   const hero = heroItems[activeHeroIndex];
-  const heroPath = useMemo(() => hero ? `/${hero.type}/${hero.id}` : '/', [hero]);
+  const heroPath = useMemo(() => hero ? mediaPath(hero) : '/', [hero]);
+  const homepageSchema = useMemo(() => ({
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'WebSite', '@id': `${toAbsoluteSiteUrl('/')}#website`, name: SITE_NAME, url: toAbsoluteSiteUrl('/'), description: 'Movie, TV-show, and anime discovery with factual title information and personal watchlists.', inLanguage: 'en' },
+      { '@type': 'Organization', '@id': `${toAbsoluteSiteUrl('/')}#organization`, name: SITE_NAME, url: toAbsoluteSiteUrl('/'), publishingPrinciples: toAbsoluteSiteUrl('/editorial-policy') }
+    ]
+  }), []);
   useEffect(() => { if (hero) setHeroSaved(isInMyList(hero.id, hero.type)); }, [hero]);
 
   const stepHero = (direction: number) => {
@@ -98,23 +121,12 @@ const Home: React.FC = () => {
     setHeroSaved(!heroSaved);
   };
 
-  if (loading) return <Loader page label="Calibrating your feed" />;
-
   return (
     <div className="page-home">
-      {hero && (
+      <Seo title="StreamNexus — Discover Movies, TV Shows & Anime" description="Explore movies, TV shows, and anime with story summaries, cast and release details, trailers, related titles, and personal watchlists." path="/" jsonLd={homepageSchema} />
+      {hero ? (
         <section className="hero" aria-label="Featured title">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${hero.type}-${hero.id}`}
-              className="hero-art"
-              initial={{ opacity: 0, scale: 1.025 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: .75, ease: [0.16, 1, 0.3, 1] }}
-              style={{ backgroundImage: `url(${hero.banner || hero.poster})` }}
-            />
-          </AnimatePresence>
+          <img key={`${hero.type}-${hero.id}`} className="hero-art" src={backdropSrc(hero.banner || hero.poster)} srcSet={backdropSrcSet(hero.banner || hero.poster)} sizes="100vw" alt="" aria-hidden="true" width="1280" height="720" fetchPriority="high" decoding="async" />
           <div className="hero-scrim" />
           <div className="shell hero-layout">
             <motion.div
@@ -124,7 +136,7 @@ const Home: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: .65, delay: .12, ease: [0.16, 1, 0.3, 1] }}
             >
-              <div className="eyebrow"><Sparkles size={13} /> Tonight's spotlight</div>
+              <div className="eyebrow"><Sparkles size={13} /> Tonight&apos;s spotlight</div>
               <h1>{hero.title}</h1>
               <div className="hero-facts">
                 <strong>{hero.rating ? `${Math.round(hero.rating * 10)}% match` : 'New'}</strong>
@@ -133,9 +145,14 @@ const Home: React.FC = () => {
               </div>
               <p>{hero.description}</p>
               <div className="hero-actions">
-                <button className="button button-primary" onClick={() => navigate(heroPath)}><Play size={17} fill="currentColor" /> Watch now</button>
-                <button className="button button-quiet" onClick={() => navigate(heroPath)}><Info size={17} /> Details</button>
+                <Link className="button button-primary" to={heroPath}><Play size={17} fill="currentColor" /> View title</Link>
+                <Link className="button button-quiet" to={heroPath}><Info size={17} /> Details</Link>
                 <button className={`button button-icon ${heroSaved ? 'is-saved' : ''}`} onClick={toggleHeroSaved} aria-label={heroSaved ? 'Remove from my list' : 'Add to my list'}><Bookmark size={18} fill={heroSaved ? 'currentColor' : 'none'} /></button>
+              </div>
+              <div className="hero-controls hero-controls-mobile">
+                <button onClick={() => stepHero(-1)} aria-label="Previous spotlight"><ChevronLeft size={17} /></button>
+                <button onClick={() => setHeroPaused(paused => !paused)} aria-pressed={heroPaused} aria-label={heroPaused ? 'Resume spotlight rotation' : 'Pause spotlight rotation'}>{heroPaused ? <Play size={15} fill="currentColor" /> : <Pause size={15} fill="currentColor" />}</button>
+                <button onClick={() => stepHero(1)} aria-label="Next spotlight"><ChevronRight size={17} /></button>
               </div>
             </motion.div>
             <div className="hero-side">
@@ -148,22 +165,36 @@ const Home: React.FC = () => {
               </div>
               <div className="hero-controls">
                 <button onClick={() => stepHero(-1)} aria-label="Previous spotlight"><ChevronLeft size={17} /></button>
-                <button onClick={() => setHeroPaused(paused => !paused)} aria-label={heroPaused ? 'Resume spotlight rotation' : 'Pause spotlight rotation'}>{heroPaused ? <Play size={15} fill="currentColor" /> : <Pause size={15} fill="currentColor" />}</button>
+                <button onClick={() => setHeroPaused(paused => !paused)} aria-pressed={heroPaused} aria-label={heroPaused ? 'Resume spotlight rotation' : 'Pause spotlight rotation'}>{heroPaused ? <Play size={15} fill="currentColor" /> : <Pause size={15} fill="currentColor" />}</button>
                 <button onClick={() => stepHero(1)} aria-label="Next spotlight"><ChevronRight size={17} /></button>
               </div>
             </div>
           </div>
           <div className="hero-scrollcue">Scroll to browse <ArrowRight size={14} /></div>
         </section>
+      ) : (
+        <section className="hero hero-fallback" aria-labelledby="home-heading">
+          <div className="hero-scrim" />
+          <div className="shell hero-layout">
+            <div className="hero-copy">
+              <div className="eyebrow"><Sparkles size={13} /> Movie, TV, and anime discovery</div>
+              <h1 id="home-heading">Discover your next story</h1>
+              <p>Explore factual story summaries, cast and release details, genres, trailers, and related titles.</p>
+              {loading && <span className="loading-note" role="status">Loading current catalog highlights…</span>}
+              <div className="hero-actions"><Link className="button button-primary" to="/movies">Browse movies <ArrowRight size={16} /></Link><Link className="button button-quiet" to="/tv-shows">Browse TV shows</Link></div>
+            </div>
+          </div>
+        </section>
       )}
 
       <div className="catalog-flow">
+        {catalogWarning && <div className="catalog-warning shell" role="status"><AlertCircle size={17} /><span>{catalogWarning}</span><button onClick={() => setRetryKey(key => key + 1)}><RefreshCcw size={14} /> Retry</button></div>}
         <section className="vibe-section shell">
           <header><div className="eyebrow">Choose your energy</div><h2>What are you in the mood for?</h2></header>
           <div className="vibe-grid">
-            <button onClick={() => navigate('/movies?genre=28')}><span>01</span><div><b>Adrenaline</b><small>Action · Thrillers · High stakes</small></div><ArrowRight size={18} /></button>
-            <button onClick={() => navigate('/movies?genre=878')}><span>02</span><div><b>Other worlds</b><small>Sci-fi · Fantasy · Wonder</small></div><ArrowRight size={18} /></button>
-            <button onClick={() => navigate('/movies?genre=18')}><span>03</span><div><b>Feel something</b><small>Drama · Romance · True stories</small></div><ArrowRight size={18} /></button>
+            <Link to="/movies/genre/action"><span>01</span><div><b>Adrenaline</b><small>Action · Thrillers · High stakes</small></div><ArrowRight size={18} /></Link>
+            <Link to="/movies/genre/science-fiction"><span>02</span><div><b>Other worlds</b><small>Sci-fi · Fantasy · Wonder</small></div><ArrowRight size={18} /></Link>
+            <Link to="/movies/genre/drama"><span>03</span><div><b>Feel something</b><small>Drama · Romance · True stories</small></div><ArrowRight size={18} /></Link>
           </div>
         </section>
         {continueWatching.length > 0 && (

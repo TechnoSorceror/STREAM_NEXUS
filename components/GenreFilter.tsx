@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { tmdbService } from '../services/tmdb';
+import { Link } from 'react-router-dom';
+import { getGenreLandingByName } from '../lib/catalog';
 
 interface Props {
   type: 'movie' | 'tv';
@@ -44,12 +46,15 @@ const GenreFilter: React.FC<Props> = ({ type, selectedGenreId, onSelectGenre }) 
   return (
     <div className="genre-filter">
       {edges.left && <button className="genre-arrow left" onClick={() => move(-1)} aria-label="Previous genres"><ChevronLeft size={18} /></button>}
-      <div className="genre-strip" role="tablist" aria-label="Genres" ref={scrollRef} onScroll={updateEdges}>
-        <button role="tab" aria-selected={selectedGenreId === null} className={selectedGenreId === null ? 'active' : ''} onClick={() => onSelectGenre(null)}>All titles</button>
-        {genres.map(genre => (
-          <button role="tab" aria-selected={selectedGenreId === genre.id} className={selectedGenreId === genre.id ? 'active' : ''} key={genre.id} onClick={() => onSelectGenre(genre.id)}>{genre.name}</button>
-        ))}
-      </div>
+      <nav className="genre-strip" aria-label={`${type === 'movie' ? 'Movie' : 'TV'} genres`} ref={scrollRef} onScroll={updateEdges}>
+        <Link className={selectedGenreId === null ? 'active' : ''} to={type === 'movie' ? '/movies' : '/tv-shows'} onClick={() => onSelectGenre(null)}>All titles</Link>
+        {genres.map(genre => {
+          const landing = getGenreLandingByName(type, genre.name);
+          return landing
+            ? <Link className={selectedGenreId === genre.id ? 'active' : ''} key={genre.id} to={`/${type === 'movie' ? 'movies' : 'tv-shows'}/genre/${landing.slug}`}>{genre.name}</Link>
+            : <button className={selectedGenreId === genre.id ? 'active' : ''} key={genre.id} onClick={() => onSelectGenre(genre.id)}>{genre.name}</button>;
+        })}
+      </nav>
       {edges.right && <button className="genre-arrow right" onClick={() => move(1)} aria-label="More genres"><ChevronRight size={18} /></button>}
     </div>
   );
