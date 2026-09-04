@@ -6,6 +6,8 @@ export const MULTIEMBED_BASE = 'https://multiembed.mov/directstream.php'; // VIP
 export const generateEmbedUrl = (media: MediaItem, state: PlaybackState): string | null => {
   const { type, tmdbId, anilistId } = media;
   const { season, episode, server } = state;
+  const selectedSeason = season ?? media.tmdbSeason ?? 1;
+  const selectedEpisode = episode ?? 1;
 
   switch (type) {
     case 'movie':
@@ -17,18 +19,10 @@ export const generateEmbedUrl = (media: MediaItem, state: PlaybackState): string
 
     case 'tv':
       if (!tmdbId) return null;
-      
       if (server === 2) {
-        if (season && episode) {
-          return `${MULTIEMBED_BASE}?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`;
-        }
-        return `${MULTIEMBED_BASE}?video_id=${tmdbId}&tmdb=1`;
+        return `${MULTIEMBED_BASE}?video_id=${tmdbId}&tmdb=1&s=${selectedSeason}&e=${selectedEpisode}`;
       }
-
-      if (season && episode) {
-        return `${VIDSRC_SBS_BASE}/tv/${tmdbId}/${season}/${episode}`;
-      }
-      return `${VIDSRC_SBS_BASE}/tv/${tmdbId}`;
+      return `${VIDSRC_SBS_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
 
     case 'anime':
       if (!tmdbId) return null;
@@ -37,16 +31,9 @@ export const generateEmbedUrl = (media: MediaItem, state: PlaybackState): string
         return `${VIDSRC_SBS_BASE}/movie/${tmdbId}`;
       }
       if (server === 2) {
-        if (season && episode) {
-          return `${MULTIEMBED_BASE}?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`;
-        }
-        return `${MULTIEMBED_BASE}?video_id=${tmdbId}&tmdb=1&s=${season || 1}&e=${episode || 1}`;
+        return `${MULTIEMBED_BASE}?video_id=${tmdbId}&tmdb=1&s=${selectedSeason}&e=${selectedEpisode}`;
       }
-
-      if (season && episode) {
-        return `${VIDSRC_SBS_BASE}/tv/${tmdbId}/${season}/${episode}`;
-      }
-      return `${VIDSRC_SBS_BASE}/tv/${tmdbId}/${season || 1}/${episode || 1}`;
+      return `${VIDSRC_SBS_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
 
     case 'manga': {
       // Manga is not affected by server selection

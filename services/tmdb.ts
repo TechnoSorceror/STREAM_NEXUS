@@ -1,5 +1,5 @@
 import { TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE } from '../constants';
-import { MediaItem, EpisodeInfo, PersonCredit, PersonDetails, SeasonInfo } from '../types';
+import { MediaItem, EpisodeInfo, PersonCredit, PersonDetails, SeasonInfo, SeasonReference } from '../types';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -57,9 +57,11 @@ const pickAgeRating = (data: any, type: 'movie' | 'tv') => {
   return data.content_ratings?.results?.find((entry: any) => entry.iso_3166_1 === 'US')?.rating || undefined;
 };
 
-const ANIME_MAP_KEY = 'streamnexus_anime_tmdb_map_v1';
+const ANIME_MAP_KEY = 'streamnexus_anime_tmdb_map_v2';
 
-type AnimeMap = Record<string, { tmdbId: number; type: 'movie' | 'tv'; season?: number }>;
+type TmdbMediaType = 'movie' | 'tv';
+type AnimeMatch = { tmdbId: number; type: TmdbMediaType; season?: number };
+type AnimeMap = Record<string, AnimeMatch>;
 
 const readAnimeMap = (): AnimeMap => {
   if (typeof window === 'undefined') return {};
@@ -75,19 +77,27 @@ const normalizeTitle = (value = '') => value
   .toLocaleLowerCase()
   .normalize('NFKD')
   .replace(/[\u0300-\u036f]/g, '')
-  .replace(/\b(?:season|part|cour)\s*\d+\b/g, '')
+  .replace(/\b(?:the\s+)?final\s+season\b/g, '')
+  .replace(/\bseason\s*\d+\b/g, '')
   .replace(/\b\d+(?:st|nd|rd|th)\s+season\b/g, '')
+  .replace(/\b(?:part|cour)\s*\d+\b/g, '')
   .replace(/[^a-z0-9]+/g, ' ')
   .trim();
 
-const inferAnimeSeason = (anime: MediaItem) => {
+const inferExplicitAnimeSeason = (anime: MediaItem): number | undefined => {
   const titles = [anime.title, anime.romajiTitle, anime.nativeTitle, ...(anime.synonyms || [])].filter(Boolean).join(' ');
-  const direct = titles.match(/\b(?:season|part)\s*(\d+)\b/i)?.[1];
+  const direct = titles.match(/\bseason\s*(\d+)\b/i)?.[1];
   const ordinal = titles.match(/\b(\d+)(?:st|nd|rd|th)\s+season\b/i)?.[1];
-  return Number(direct || ordinal || 1);
+  const value = Number(direct || ordinal);
+  return Number.isInteger(value) && value >= 0 ? value : undefined;
 };
 
-const scoreAnimeCandidate = (candidate: any, anime: MediaItem) => {
+const animeTitles = (anime: MediaItem) => [...new Set(
+  [anime.title, anime.romajiTitle, anime.nativeTitle, ...(anime.synonyms || [])]
+    .filter((title): title is string => Boolean(title?.trim()))
+)];
+
+const scoreAnimeCandidate = (candidate: any, candidateType: TmdbMediaType, anime: MediaItem) => {
   const sourceTitles = [anime.title, anime.romajiTitle, anime.nativeTitle, ...(anime.synonyms || [])]
     .filter(Boolean)
     .map(title => normalizeTitle(String(title)))
@@ -97,21 +107,76 @@ const scoreAnimeCandidate = (candidate: any, anime: MediaItem) => {
     .map((title: string) => normalizeTitle(title));
 
   let score = 0;
-  if (sourceTitles.some(title => candidateTitles.includes(title))) score += 75;
-  else if (sourceTitles.some(title => candidateTitles.some(other => title.includes(other) || other.includes(title)))) score += 42;
+  if (sourceTitles.some(title => candidateTitles.includes(title))) score += 90;
+  else if (sourceTitles.some(title => candidateTitles.some(other => title.length >= 5 && other.length >= 5 && (title.includes(other) || other.includes(title))))) score += 48;
+  else {
+    const overlap = sourceTitles.reduce((best, title) => {
+      const sourceWords = new Set(title.split(' ').filter(word => word.length > 2));
+      return candidateTitles.reduce((candidateBest, other) => {
+        const targetWords = new Set(other.split(' ').filter(word => word.length > 2));
+        const shared = [...sourceWords].filter(word => targetWords.has(word)).length;
+        return Math.max(candidateBest, shared / Math.max(sourceWords.size, targetWords.size, 1));
+      }, best);
+    }, 0);
+    score += Math.round(overlap * 48);
+  }
 
-  const animeYear = Number(anime.releaseDate?.slice(0, 4));
+  const animeYear = anime.seasonYear || Number(anime.releaseDate?.slice(0, 4));
   const candidateYear = Number((candidate.release_date || candidate.first_air_date || '').slice(0, 4));
   if (animeYear && candidateYear) {
     const difference = Math.abs(animeYear - candidateYear);
-    if (difference === 0) score += 24;
-    else if (difference === 1) score += 12;
-    else if (difference > 3) score -= 18;
+    if (difference === 0) score += 18;
+    else if (difference <= 2) score += 8;
+    else if (candidateType === 'movie' && difference > 3) score -= 16;
+    else if (difference > 10) score -= 8;
   }
   if (candidate.original_language === 'ja') score += 10;
   if (candidate.genre_ids?.includes(16)) score += 12;
   if (candidate.poster_path) score += 3;
+
+  if (anime.format === 'MOVIE') score += candidateType === 'movie' ? 22 : -14;
+  else if (anime.format === 'TV' || anime.format === 'TV_SHORT') score += candidateType === 'tv' ? 18 : -12;
+  else score += candidateType === 'tv' ? 5 : 3;
+
   return score;
+};
+
+const parseDate = (value?: string) => {
+  if (!value || value === 'N/A') return null;
+  const parts = value.split('-').map(Number);
+  if (!parts[0]) return null;
+  return Date.UTC(parts[0], Math.max((parts[1] || 1) - 1, 0), parts[2] || 1);
+};
+
+const pickAnimeSeason = (anime: MediaItem, seasons: SeasonReference[] = [], cachedSeason?: number) => {
+  const available = seasons.filter(season => season.episodeCount > 0);
+  if (!available.length) return cachedSeason ?? inferExplicitAnimeSeason(anime) ?? 1;
+
+  const animeDate = parseDate(anime.releaseDate);
+  if (animeDate !== null) {
+    const exact = available.find(season => parseDate(season.airDate) === animeDate);
+    if (exact) return exact.seasonNumber;
+  }
+
+  if (['OVA', 'ONA', 'SPECIAL', 'MUSIC'].includes(anime.format || '')) {
+    const specials = available.find(season => season.seasonNumber === 0);
+    if (specials) return specials.seasonNumber;
+  }
+
+  const explicit = inferExplicitAnimeSeason(anime);
+  if (explicit !== undefined && available.some(season => season.seasonNumber === explicit)) return explicit;
+
+  if (animeDate !== null) {
+    const dated = available
+      .map(season => ({ season, date: parseDate(season.airDate) }))
+      .filter((entry): entry is { season: SeasonReference; date: number } => entry.date !== null)
+      .sort((left, right) => Math.abs(left.date - animeDate) - Math.abs(right.date - animeDate));
+    const closest = dated[0];
+    if (closest && Math.abs(closest.date - animeDate) <= 550 * 24 * 60 * 60 * 1000) return closest.season.seasonNumber;
+  }
+
+  if (cachedSeason !== undefined && available.some(season => season.seasonNumber === cachedSeason)) return cachedSeason;
+  return available.find(season => season.seasonNumber > 0)?.seasonNumber ?? available[0].seasonNumber;
 };
 
 export const tmdbService = {
@@ -194,9 +259,14 @@ export const tmdbService = {
         voteCount: data.vote_count,
         directors: type === 'movie' ? (data.credits?.crew || []).filter((person: any) => person.job === 'Director').slice(0, 5).map((person: any) => mapCredit(person, 'Director')) : undefined,
         creators: type === 'tv' ? (data.created_by || []).map((person: any) => mapCredit(person, 'Creator')) : undefined,
-        cast: (data.credits?.cast || []).slice(0, 12).map((person: any) => mapCredit(person)),
         seasons: type === 'tv' ? data.number_of_seasons : undefined,
         episodes: type === 'tv' ? data.number_of_episodes : undefined,
+        seasonOptions: type === 'tv' ? (data.seasons || []).map((season: any): SeasonReference => ({
+          seasonNumber: season.season_number,
+          name: season.name || (season.season_number === 0 ? 'Specials' : `Season ${season.season_number}`),
+          episodeCount: season.episode_count || 0,
+          airDate: season.air_date || undefined
+        })) : undefined,
         status: data.status,
         collectionId: data.belongs_to_collection?.id,
         collectionName: data.belongs_to_collection?.name,
@@ -209,34 +279,46 @@ export const tmdbService = {
 
   resolveAnime: async (anime: MediaItem): Promise<MediaItem | null> => {
     if (!anime.anilistId) return null;
-    const cached = readAnimeMap()[String(anime.anilistId)];
-    const targetType: 'movie' | 'tv' = anime.format === 'MOVIE' ? 'movie' : 'tv';
-    let match = cached && cached.type === targetType ? cached : null;
+    const cache = readAnimeMap();
+    let match = cache[String(anime.anilistId)] || null;
+    let details = match ? await tmdbService.getDetails(match.tmdbId, match.type) : null;
 
-    if (!match) {
-      const titles = [anime.title, anime.romajiTitle, ...(anime.synonyms || [])]
-        .filter((title, index, list) => Boolean(title) && list.indexOf(title) === index)
-        .slice(0, 4) as string[];
-      const candidates = new Map<number, any>();
-
-      for (const title of titles) {
-        const data = await fetchTMDB(`/search/${targetType}`, { query: title, include_adult: 'false' });
-        (data.results || []).forEach((candidate: any) => candidates.set(candidate.id, candidate));
-        if (candidates.size >= 20) break;
+    if (!details) {
+      if (match) {
+        delete cache[String(anime.anilistId)];
+        writeAnimeMap(cache);
       }
 
-      const ranked = [...candidates.values()]
-        .map(candidate => ({ candidate, score: scoreAnimeCandidate(candidate, anime) }))
-        .sort((a, b) => b.score - a.score);
-      if (!ranked.length || ranked[0].score < 48) return null;
+      const searches = await Promise.allSettled(
+        animeTitles(anime).slice(0, 5).map(title => fetchTMDB('/search/multi', { query: title, include_adult: 'false' }))
+      );
+      const candidates = new Map<string, { candidate: any; type: TmdbMediaType }>();
+      searches.forEach(result => {
+        if (result.status !== 'fulfilled') return;
+        (result.value.results || []).forEach((candidate: any) => {
+          if (candidate.media_type !== 'movie' && candidate.media_type !== 'tv') return;
+          candidates.set(`${candidate.media_type}:${candidate.id}`, { candidate, type: candidate.media_type });
+        });
+      });
 
-      match = { tmdbId: ranked[0].candidate.id, type: targetType, season: targetType === 'tv' ? inferAnimeSeason(anime) : undefined };
-      const map = readAnimeMap();
-      map[String(anime.anilistId)] = match;
-      writeAnimeMap(map);
+      const ranked = [...candidates.values()]
+        .map(entry => ({ ...entry, score: scoreAnimeCandidate(entry.candidate, entry.type, anime) }))
+        .sort((left, right) => right.score - left.score);
+      const best = ranked[0];
+      if (!best || best.score < 60) return null;
+
+      match = { tmdbId: best.candidate.id, type: best.type };
+      details = await tmdbService.getDetails(match.tmdbId, match.type);
+      if (!details) return null;
     }
 
-    const details = await tmdbService.getDetails(match.tmdbId, match.type);
+    const matchedSeason = match.type === 'tv'
+      ? pickAnimeSeason(anime, details.seasonOptions, match.season)
+      : undefined;
+    match = { ...match, season: matchedSeason };
+    cache[String(anime.anilistId)] = match;
+    writeAnimeMap(cache);
+
     if (!details) return null;
 
     return {
@@ -256,9 +338,9 @@ export const tmdbService = {
       ageRating: details.ageRating,
       directors: details.directors,
       creators: details.creators,
-      cast: details.cast,
       seasons: match.type === 'tv' ? details.seasons : undefined,
       episodes: match.type === 'tv' ? details.episodes : undefined,
+      seasonOptions: match.type === 'tv' ? details.seasonOptions : undefined,
       trailerUrl: details.trailerUrl || anime.trailerUrl,
       type: 'anime'
     };

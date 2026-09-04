@@ -7,6 +7,13 @@ export interface PersonCredit {
   profile?: string;
 }
 
+export interface SeasonReference {
+  seasonNumber: number;
+  name: string;
+  episodeCount: number;
+  airDate?: string;
+}
+
 export interface MediaItem {
   id: string | number;
   tmdbId?: number;
@@ -39,11 +46,11 @@ export interface MediaItem {
   ageRating?: string;
   directors?: PersonCredit[];
   creators?: PersonCredit[];
-  cast?: PersonCredit[];
   voteCount?: number;
   // TV specific
   seasons?: number; // Total number of seasons
   episodes?: number; // Total episodes (or per season count in some contexts)
+  seasonOptions?: SeasonReference[];
   // Anime/Manga specific
   nextAiringEpisode?: number;
   // Collection specific (Movies)
@@ -93,11 +100,11 @@ export interface EpisodeInfo {
 // State for the player/reader
 export interface PlaybackState {
   isPlaying: boolean;
-  season: number;
+  season: number; // TMDB uses 0 for specials
   episode: number;
   chapter: number;
   isDub: boolean; // 0 = sub, 1 = dub
-  server: 1 | 2; // 1 = VidSrc ICU, 2 = VidSrc Embed RU
+  server: 1 | 2; // 1 = VidSrc SBS, 2 = MultiEmbed
 }
 
 export type WatchStatus = 'watching' | 'plan_to_watch' | 'completed' | 'on_hold' | 'dropped';

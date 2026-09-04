@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 
 export const SITE_NAME = 'StreamNexus';
-export const DEFAULT_DESCRIPTION = 'Discover movies, TV shows, and anime with clear story summaries, cast details, genres, trailers, and viewing information.';
+export const DEFAULT_DESCRIPTION = 'Discover movies, TV shows, and anime with clear story summaries, release details, genres, trailers, and viewing information.';
 
 export interface SeoProps {
   title: string;

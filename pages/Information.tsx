@@ -9,7 +9,7 @@ const information: Record<InfoKey, { title: string; description: string; body: R
   about: {
     title: 'About StreamNexus',
     description: 'Learn how StreamNexus organizes movie, TV-show, and anime metadata and how viewing links and watchlists work.',
-    body: <><p>StreamNexus is a media discovery interface that organizes factual title information, artwork, trailers, cast details, episode guides, and related recommendations.</p><h2>Data and viewing sources</h2><p>Movie and TV metadata and imagery are supplied by TMDB. Anime metadata is supplied by AniList. StreamNexus is not endorsed or certified by either provider. Video playback, when available, is delivered by third-party embed providers and is loaded only after a visitor chooses to play a title.</p><h2>Personal features</h2><p>Saved titles and viewing progress are stored locally in the visitor’s browser. The current site does not provide user accounts or synchronize this information to a StreamNexus database.</p></>
+    body: <><p>StreamNexus is a media discovery interface that organizes factual title information, artwork, trailers, episode guides, and related recommendations.</p><h2>Data and viewing sources</h2><p>Movie and TV metadata and imagery are supplied by TMDB. Anime metadata is supplied by AniList. StreamNexus is not endorsed or certified by either provider. Video playback, when available, is delivered by third-party embed providers and is loaded only after a visitor chooses to play a title.</p><h2>Personal features</h2><p>Saved titles and viewing progress are stored locally in the visitor’s browser. The current site does not provide user accounts or synchronize this information to a StreamNexus database.</p></>
   },
   contact: {
     title: 'Contact',

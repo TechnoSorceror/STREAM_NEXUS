@@ -122,6 +122,16 @@ const Anime: React.FC = () => {
     setGenre(''); setFormat(''); setStatus(''); setYear(''); setScore(0);
   };
 
+  const hasCatalogData = Object.keys(data).some(key => (data[key]?.length || 0) > 0);
+  if (loading && !hasCatalogData) {
+    return (
+      <div className="anime-page">
+        <Seo title={`Anime Series & Films: Episodes and Details | ${SITE_NAME}`} description="Browse current-season, trending, popular, and highly rated anime with story summaries, formats, episodes, studios, and related titles." path="/anime" robots={hasFilters ? 'noindex,follow' : undefined} jsonLd={hasFilters ? undefined : schema} />
+        <Loader page label="Loading anime catalog from AniList" />
+      </div>
+    );
+  }
+
   return (
     <div className="anime-page">
       <Seo title={`Anime Series & Films: Episodes and Details | ${SITE_NAME}`} description="Browse current-season, trending, popular, and highly rated anime with story summaries, formats, episodes, studios, and related titles." path="/anime" robots={hasFilters ? 'noindex,follow' : undefined} jsonLd={hasFilters ? undefined : schema} />

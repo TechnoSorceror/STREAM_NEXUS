@@ -86,7 +86,7 @@ const TVShows: React.FC = () => {
 
   return (
     <div className="browse-page shell">
-      <Seo title={`TV Shows: Seasons, Episodes & Cast | ${SITE_NAME}`} description="Browse TV shows with series summaries, cast, seasons, episode navigation, trailers, genres, and related recommendations." path="/tv-shows" robots={isFiltered ? 'noindex,follow' : undefined} jsonLd={isFiltered ? undefined : schema} />
+      <Seo title={`TV Shows: Seasons, Episodes & Details | ${SITE_NAME}`} description="Browse TV shows with series summaries, seasons, episode navigation, trailers, genres, and related recommendations." path="/tv-shows" robots={isFiltered ? 'noindex,follow' : undefined} jsonLd={isFiltered ? undefined : schema} />
       <header className="browse-header"><div><div className="eyebrow"><Radio size={13} /> Series index</div><h1>TV shows</h1><p>Stories that earn the next episode.</p></div><div className="archive-count">SEASON READY</div></header>
       <GenreFilter type="tv" selectedGenreId={genre} onSelectGenre={setGenre} />
       {warning && <div className="catalog-warning" role="status"><AlertCircle size={17} /><span>{warning}</span><button onClick={() => setRetryKey(key => key + 1)}><RefreshCcw size={14} /> Retry</button></div>}

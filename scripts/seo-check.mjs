@@ -87,6 +87,18 @@ const call = path => worker.fetch(new Request(`${origin}${path}`), env);
 const body = response => response.text();
 const count = (value, pattern) => (value.match(pattern) || []).length;
 
+const tunnelEnv = { ...env, SITE_URL: undefined };
+const tunnelProxyResponse = await worker.fetch(new Request('http://streamnexus.fun/api/tmdb/search/tv?query=Attack%20on%20Titan&include_adult=false', {
+  headers: { 'X-Forwarded-Proto': 'https' }
+}), tunnelEnv);
+assert.equal(tunnelProxyResponse.status, 200, 'TMDB requests behind an HTTPS tunnel must not be redirected to HTTP');
+assert.equal(tunnelProxyResponse.headers.get('location'), null);
+const tunnelCanonicalResponse = await worker.fetch(new Request('http://streamnexus.fun/MOVIES/', {
+  headers: { 'X-Forwarded-Proto': 'https' }
+}), tunnelEnv);
+assert.equal(tunnelCanonicalResponse.status, 301);
+assert.equal(tunnelCanonicalResponse.headers.get('location'), 'https://streamnexus.fun/movies');
+
 const homeResponse = await call('/');
 const home = await body(homeResponse);
 assert.equal(homeResponse.status, 200);
@@ -121,7 +133,8 @@ const detail = await body(detailResponse);
 assert.equal(detailResponse.status, 200);
 assert.match(detail, /<h1>The Matrix<\/h1>/);
 assert.match(detail, /"@type":"Movie"/);
-assert.match(detail, /\/person\/6384-keanu-reeves/);
+assert.match(detail, /\/person\/9340-lana-wachowski/);
+assert.ok(!detail.includes('class="cast-block"'), 'detail pages must not render cast cards');
 assert.match(detail, new RegExp(`<link rel="canonical" href="${origin}/movie/603-the-matrix">`));
 assert.equal(count(detail, /<h1[ >]/g), 1, 'detail should have one H1');
 

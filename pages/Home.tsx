@@ -123,7 +123,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="page-home">
-      <Seo title="StreamNexus — Discover Movies, TV Shows & Anime" description="Explore movies, TV shows, and anime with story summaries, cast and release details, trailers, related titles, and personal watchlists." path="/" jsonLd={homepageSchema} />
+      <Seo title="StreamNexus — Discover Movies, TV Shows & Anime" description="Explore movies, TV shows, and anime with story summaries, release details, trailers, related titles, and personal watchlists." path="/" jsonLd={homepageSchema} />
       {hero ? (
         <section className="hero" aria-label="Featured title">
           <img key={`${hero.type}-${hero.id}`} className="hero-art" src={backdropSrc(hero.banner || hero.poster)} srcSet={backdropSrcSet(hero.banner || hero.poster)} sizes="100vw" alt="" aria-hidden="true" width="1280" height="720" fetchPriority="high" decoding="async" />
@@ -179,7 +179,7 @@ const Home: React.FC = () => {
             <div className="hero-copy">
               <div className="eyebrow"><Sparkles size={13} /> Movie, TV, and anime discovery</div>
               <h1 id="home-heading">Discover your next story</h1>
-              <p>Explore factual story summaries, cast and release details, genres, trailers, and related titles.</p>
+              <p>Explore factual story summaries, release details, genres, trailers, and related titles.</p>
               {loading && <span className="loading-note" role="status">Loading current catalog highlights…</span>}
               <div className="hero-actions"><Link className="button button-primary" to="/movies">Browse movies <ArrowRight size={16} /></Link><Link className="button button-quiet" to="/tv-shows">Browse TV shows</Link></div>
             </div>

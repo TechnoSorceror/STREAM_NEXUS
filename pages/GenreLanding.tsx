@@ -60,7 +60,7 @@ const GenreLanding: React.FC<{ type: 'movie' | 'tv' }> = ({ type }) => {
 
   return (
     <div className="browse-page shell collection-page">
-      <Seo title={`${definition.title}: Stories & Cast | ${SITE_NAME}`} description={definition.intro} path={path} jsonLd={jsonLd} />
+      <Seo title={`${definition.title}: Stories & Details | ${SITE_NAME}`} description={definition.intro} path={path} jsonLd={jsonLd} />
       <Breadcrumbs items={[{ label: 'Home', path: '/' }, { label: type === 'movie' ? 'Movies' : 'TV shows', path: type === 'movie' ? '/movies' : '/tv-shows' }, { label: definition.name }]} />
       <header className="browse-header">
         <div><div className="eyebrow"><Compass size={13} /> Curated by genre</div><h1>{definition.title}</h1><p>{definition.intro}</p></div>

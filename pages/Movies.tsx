@@ -88,7 +88,7 @@ const Movies: React.FC = () => {
 
   return (
     <div className="browse-page shell">
-      <Seo title={`Movies: Cast, Trailers & Release Details | ${SITE_NAME}`} description="Browse current, popular, highly rated, Hindi-language, and genre-based movies with story, cast, trailer, and release information." path="/movies" robots={isFiltered ? 'noindex,follow' : undefined} jsonLd={isFiltered ? undefined : schema} />
+      <Seo title={`Movies: Trailers & Release Details | ${SITE_NAME}`} description="Browse current, popular, highly rated, Hindi-language, and genre-based movies with story, trailer, and release information." path="/movies" robots={isFiltered ? 'noindex,follow' : undefined} jsonLd={isFiltered ? undefined : schema} />
       <header className="browse-header">
         <div><div className="eyebrow"><Film size={13} /> Film archive</div><h1>Movies</h1><p>Big releases, quiet masterpieces, and everything between.</p></div>
         <div className="archive-count">CURATED DAILY</div>

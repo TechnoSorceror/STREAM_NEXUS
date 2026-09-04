@@ -78,7 +78,7 @@ const Details: React.FC = () => {
         setSaved(isInMyList(result.id, result.type));
         setWatchStatus((getMyListStatus(result.id, result.type) as WatchStatus) || 'plan_to_watch');
         const progress = getWatchProgress(result.id, result.type);
-        setPlayState({ isPlaying: false, season: progress?.season || result.tmdbSeason || 1, episode: progress?.episode || 1, chapter: progress?.chapter || 1, isDub: false, server: 1 });
+        setPlayState({ isPlaying: false, season: progress?.season ?? result.tmdbSeason ?? 1, episode: progress?.episode ?? 1, chapter: progress?.chapter ?? 1, isDub: false, server: 1 });
         if ((type === 'movie' || type === 'tv') && result.id) setRecommendations(await tmdbService.getRecommendations(Number(result.id), type));
         if (type === 'anime' && result.tmdbId && result.tmdbMediaType) setRecommendations(await tmdbService.getRecommendations(result.tmdbId, result.tmdbMediaType));
         if (type === 'movie' && result.collectionId) setCollection((await tmdbService.getCollection(result.collectionId)).filter(item => item.id !== result!.id));
@@ -126,7 +126,6 @@ const Details: React.FC = () => {
           ...(media.ageRating ? { contentRating: media.ageRating } : {}),
           ...(media.originCountries?.length ? { countryOfOrigin: media.originCountries.map(name => ({ '@type': 'Country', name })) } : {}),
           ...(people?.length ? { [media.type === 'movie' ? 'director' : 'creator']: people.map(person => ({ '@type': 'Person', name: person.name, url: toAbsoluteSiteUrl(personPath(person.id, person.name)) })) } : {}),
-          ...(media.cast?.length ? { actor: media.cast.map(person => ({ '@type': 'Person', name: person.name, url: toAbsoluteSiteUrl(personPath(person.id, person.name)) })) } : {})
         },
         {
           '@type': 'BreadcrumbList',
@@ -172,11 +171,18 @@ const Details: React.FC = () => {
   const year = media.releaseDate?.slice(0, 4);
   const kindLabel = media.type === 'movie' ? 'Movie' : media.type === 'tv' ? 'TV Show' : media.type === 'anime' ? 'Anime' : 'Manga';
   const seoTitle = media.type === 'movie'
-    ? `${media.title}${year ? ` (${year})` : ''}: Cast, Story & Details | ${SITE_NAME}`
-    : `${media.title}: ${isSeries ? 'Seasons, Episodes & Cast' : 'Story & Details'} | ${SITE_NAME}`;
-  const seoDescription = (media.description || `Explore cast, release details, genres, and related titles for ${media.title}.`).replace(/\s+/g, ' ').trim().slice(0, 160);
+    ? `${media.title}${year ? ` (${year})` : ''}: Story & Details | ${SITE_NAME}`
+    : `${media.title}: ${isSeries ? 'Seasons, Episodes & Details' : 'Story & Details'} | ${SITE_NAME}`;
+  const seoDescription = (media.description || `Explore release details, genres, and related titles for ${media.title}.`).replace(/\s+/g, ' ').trim().slice(0, 160);
   const indexable = Boolean(media.title && media.poster && media.description?.trim().length >= 60);
   const browsePath = media.type === 'movie' ? '/movies' : media.type === 'tv' ? '/tv-shows' : '/anime';
+  const knownSeasonChoices = media.seasonOptions?.filter(season => season.episodeCount > 0 && (media.type === 'anime' || season.seasonNumber > 0))
+    .sort((left, right) => left.seasonNumber - right.seasonNumber)
+    .map(season => ({ number: season.seasonNumber, label: season.name }))
+    || [];
+  const seasonChoices = knownSeasonChoices.length
+    ? knownSeasonChoices
+    : Array.from({ length: media.seasons || 0 }, (_, index) => ({ number: index + 1, label: `Season ${index + 1}` }));
   return (
     <div className="detail-page">
       <Seo title={seoTitle} description={seoDescription} path={canonicalPath} image={media.banner || media.poster} type={media.type === 'movie' ? 'video.movie' : isSeries ? 'video.tv_show' : 'website'} robots={indexable ? undefined : 'noindex,follow'} jsonLd={mediaSchema} />
@@ -218,18 +224,17 @@ const Details: React.FC = () => {
           </dl>
           {media.genres?.length > 0 && <div className="entity-links"><h3>Genres</h3><div>{media.genres.map(genre => { const landing = getGenreLandingByName(media.type === 'movie' ? 'movie' : 'tv', genre); return landing ? <Link key={genre} to={`/${media.type === 'movie' ? 'movies' : 'tv-shows'}/genre/${landing.slug}`}>{genre}</Link> : <span key={genre}>{genre}</span>; })}</div></div>}
           {(media.directors?.length || media.creators?.length) && <div className="entity-links"><h3>{media.type === 'movie' ? 'Directed by' : 'Created by'}</h3><div>{(media.type === 'movie' ? media.directors : media.creators)?.map(person => <Link key={person.id} to={personPath(person.id, person.name)}>{person.name}</Link>)}</div></div>}
-          {media.cast?.length && <div className="cast-block"><h3>Cast</h3><div className="cast-list">{media.cast.map(person => <Link key={person.id} to={personPath(person.id, person.name)}>{person.profile ? <img src={person.profile} width="500" height="750" alt="" loading="lazy" decoding="async" /> : <span className="cast-placeholder" aria-hidden="true" />}<span><b>{person.name}</b>{person.role && <small>{person.role}</small>}</span></Link>)}</div></div>}
           <div className="availability-note"><h3>Viewing information</h3><p>Player availability is checked only after you choose to open it. StreamNexus does not currently verify subscription requirements, licensing, or territory availability.</p></div>
           <p className="source-note">Title metadata is supplied by {media.type === 'anime' || media.type === 'manga' ? 'AniList and, when matched, TMDB' : 'TMDB'}. Playback availability is checked only when you open the player.</p>
         </section>
         {playState.isPlaying && (
           <section className="player-block" ref={playerRef}>
-            <div className="player-toolbar"><div><span className="live-dot" />{media.type === 'movie' || (media.type === 'anime' && media.tmdbMediaType === 'movie') ? 'Now playing' : `Season ${playState.season}, episode ${playState.episode}`}</div><div className="player-controls">{isSeries && <><button onClick={previousEpisode} aria-label="Previous episode"><SkipBack size={16} /></button><button onClick={nextEpisode} aria-label="Next episode"><SkipForward size={16} /></button></>}<div className="server-toggle"><Server size={14} /><button className={playState.server === 1 ? 'active' : ''} onClick={() => setPlayState(s => ({ ...s, server: 1 }))}>A</button><button className={playState.server === 2 ? 'active' : ''} onClick={() => setPlayState(s => ({ ...s, server: 2 }))}>B</button></div>{embedUrl && <button onClick={() => window.open(embedUrl, '_blank', 'noopener,noreferrer')}><ExternalLink size={15} /> New tab</button>}</div></div>
+            <div className="player-toolbar"><div><span className="live-dot" />{media.type === 'movie' || (media.type === 'anime' && media.tmdbMediaType === 'movie') ? 'Now playing' : `${playState.season === 0 ? 'Specials' : `Season ${playState.season}`}, episode ${playState.episode}`}</div><div className="player-controls">{isSeries && <><button onClick={previousEpisode} aria-label="Previous episode"><SkipBack size={16} /></button><button onClick={nextEpisode} aria-label="Next episode"><SkipForward size={16} /></button></>}<div className="server-toggle"><Server size={14} /><button className={playState.server === 1 ? 'active' : ''} onClick={() => setPlayState(s => ({ ...s, server: 1 }))}>A</button><button className={playState.server === 2 ? 'active' : ''} onClick={() => setPlayState(s => ({ ...s, server: 2 }))}>B</button></div>{embedUrl && <button onClick={() => window.open(embedUrl, '_blank', 'noopener,noreferrer')}><ExternalLink size={15} /> New tab</button>}</div></div>
             <div className="player-frame">{embedUrl ? <iframe key={embedUrl} src={embedUrl} title={`${media.title} player`} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" /> : <div className="empty-state"><Video size={28} /><h2>Source unavailable.</h2></div>}</div>
           </section>
         )}
 
-        {isSeries && media.seasons && <section className="episodes-section"><div className="section-heading"><div><div className="eyebrow"><Layers size={13} /> Episode guide</div><h2>Choose an episode</h2></div><select aria-label="Season" value={playState.season} onChange={e => setPlayState(s => ({ ...s, season: Number(e.target.value), episode: 1 }))}>{Array.from({ length: media.seasons }, (_, i) => i + 1).map(season => <option key={season} value={season}>Season {season}</option>)}</select></div>{loadingEpisodes ? <Loader label="Loading episodes" /> : <div className="episode-list">{episodes.map(ep => <button key={ep.id} onClick={() => selectEpisode(ep.episode_number)} className={playState.episode === ep.episode_number ? 'active' : ''}><span className="episode-number">{String(ep.episode_number).padStart(2, '0')}</span>{ep.still_path ? <img src={ep.still_path} width="500" height="281" alt="" loading="lazy" decoding="async" /> : <span className="episode-placeholder" aria-hidden="true" />}<span><b>{ep.name}</b><small>{ep.air_date ? `${ep.air_date}. ` : ''}{ep.overview || 'No synopsis available.'}</small></span><Play size={16} /></button>)}</div>}</section>}
+        {isSeries && seasonChoices.length > 0 && <section className="episodes-section"><div className="section-heading"><div><div className="eyebrow"><Layers size={13} /> Episode guide</div><h2>Choose an episode</h2></div><select aria-label="Season" value={playState.season} onChange={e => setPlayState(s => ({ ...s, season: Number(e.target.value), episode: 1 }))}>{seasonChoices.map(season => <option key={season.number} value={season.number}>{season.label}</option>)}</select></div>{loadingEpisodes ? <Loader label="Loading episodes" /> : <div className="episode-list">{episodes.map(ep => <button key={ep.id} onClick={() => selectEpisode(ep.episode_number)} className={playState.episode === ep.episode_number ? 'active' : ''}><span className="episode-number">{String(ep.episode_number).padStart(2, '0')}</span>{ep.still_path ? <img src={ep.still_path} width="500" height="281" alt="" loading="lazy" decoding="async" /> : <span className="episode-placeholder" aria-hidden="true" />}<span><b>{ep.name}</b><small>{ep.air_date ? `${ep.air_date}. ` : ''}{ep.overview || 'No synopsis available.'}</small></span><Play size={16} /></button>)}</div>}</section>}
         {media.type === 'manga' && (media.chapters || 0) > 0 && <section className="chapters-section"><div className="section-heading"><div><div className="eyebrow"><BookOpen size={13} /> Chapter index</div><h2>Published chapters</h2><p className="source-note">Reader links are not available. This chapter count is metadata supplied by AniList.</p></div></div><div className="chapter-grid">{Array.from({ length: Math.min(media.chapters || 0, 500) }, (_, i) => i + 1).map(chapter => <span key={chapter}>{String(chapter).padStart(3, '0')}</span>)}</div></section>}
         {collection.length > 0 && <Row title={`More in ${media.collectionName}`} kicker="Complete the collection" items={collection} featured />}
         {recommendations.length > 0 && <Row title="You may also like" kicker="Signal matched" items={recommendations} />}
