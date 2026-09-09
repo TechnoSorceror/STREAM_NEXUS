@@ -200,11 +200,9 @@ export const tmdbService = {
     return (data.results || []).map((i: any) => mapTMDBToMedia(i, type));
   },
 
-  getByGenre: async (type: 'movie' | 'tv', genreId: number, year?: string, minRating?: number): Promise<MediaItem[]> => {
-    const params: any = {
-        with_genres: genreId.toString(),
-        sort_by: 'popularity.desc'
-    };
+  getByGenre: async (type: 'movie' | 'tv', genreId: number | null, year?: string, minRating?: number): Promise<MediaItem[]> => {
+    const params: Record<string, string> = { sort_by: 'popularity.desc' };
+    if (genreId !== null) params.with_genres = genreId.toString();
     
     if (year) {
         if (type === 'movie') params.primary_release_year = year;

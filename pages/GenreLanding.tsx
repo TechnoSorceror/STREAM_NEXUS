@@ -4,6 +4,7 @@ import { Compass } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Loader from '../components/Loader';
 import MediaCard from '../components/MediaCard';
+import Advertisement from '../components/Advertisement';
 import Seo, { SITE_NAME, toAbsoluteSiteUrl } from '../components/Seo';
 import { getGenreLanding } from '../lib/catalog';
 import { mediaPath } from '../lib/routes';
@@ -65,6 +66,7 @@ const GenreLanding: React.FC<{ type: 'movie' | 'tv' }> = ({ type }) => {
       <header className="browse-header">
         <div><div className="eyebrow"><Compass size={13} /> Curated by genre</div><h1>{definition.title}</h1><p>{definition.intro}</p></div>
       </header>
+      <Advertisement />
       {loading ? <Loader label="Loading titles" /> : items.length ? <section aria-labelledby="genre-results"><h2 id="genre-results" className="visually-hidden">Popular {definition.name.toLowerCase()} titles</h2><div className="media-grid">{items.map((item, index) => <MediaCard key={`${item.type}-${item.id}`} item={item} index={index} />)}</div></section> : <div className="empty-state"><h2>{failed ? 'Catalog temporarily unavailable' : 'No titles available'}</h2><p>{failed ? 'The source could not be reached. Refresh this page to try again.' : 'This collection has no usable results right now.'}</p></div>}
     </div>
   );

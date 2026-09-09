@@ -1,9 +1,11 @@
 import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'motion/react';
+import { AnimatePresence, MotionConfig, motion, useReducedMotion, useScroll, useSpring } from 'motion/react';
 import { ArrowUpRight } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Loader from './components/Loader';
+import SponsorBreak from './components/SponsorBreak';
+import Advertisement, { NativeAdvertisement } from './components/Advertisement';
 
 const Home = lazy(() => import('./pages/Home'));
 const Movies = lazy(() => import('./pages/Movies'));
@@ -32,7 +34,8 @@ const AppContent: React.FC = () => {
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <motion.div className="scroll-progress" style={{ scaleX }} />
       <Navbar />
-      <main id="main-content">
+      <SponsorBreak />
+      <main id="main-content" tabIndex={-1}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -69,6 +72,10 @@ const AppContent: React.FC = () => {
           </motion.div>
         </AnimatePresence>
       </main>
+      <div className="shell page-ad-host">
+        <Advertisement key={location.pathname} />
+        <NativeAdvertisement />
+      </div>
       <footer className="site-footer">
         <div className="shell footer-grid">
           <div className="footer-brand">
@@ -76,7 +83,7 @@ const AppContent: React.FC = () => {
             <div><strong>StreamNexus</strong><small>Your universe of stories.</small></div>
           </div>
           <p>Explore films and series, build your watchlist, and pick up exactly where you left off.</p>
-          <button type="button" className="footer-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <button type="button" className="footer-top" onClick={() => window.scrollTo({ top: 0, behavior: reduceMotion ? 'instant' : 'smooth' })}>
             Back to top <ArrowUpRight size={14} />
           </button>
         </div>
@@ -90,9 +97,11 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <BrowserRouter>
-    <AppContent />
-  </BrowserRouter>
+  <MotionConfig reducedMotion="user">
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  </MotionConfig>
 );
 
 export default App;

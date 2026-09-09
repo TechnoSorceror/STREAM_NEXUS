@@ -4,6 +4,7 @@ import { Calendar, MapPin, UserRound } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Loader from '../components/Loader';
 import MediaCard from '../components/MediaCard';
+import Advertisement from '../components/Advertisement';
 import Seo, { SITE_NAME, toAbsoluteSiteUrl } from '../components/Seo';
 import { mediaPath, parseEntityId, personPath } from '../lib/routes';
 import { tmdbService } from '../services/tmdb';
@@ -79,6 +80,7 @@ const PersonPage: React.FC = () => {
           {person.biography ? <p>{person.biography}</p> : <p>A public biography is not available. The filmography below is ordered by current catalog relevance.</p>}
         </div>
       </header>
+      <Advertisement />
       <section aria-labelledby="filmography-heading">
         <div className="section-heading"><div><div className="eyebrow">Selected credits</div><h2 id="filmography-heading">Movies and TV shows</h2></div></div>
         {person.credits.length ? <div className="media-grid">{person.credits.map((item, index) => <MediaCard key={`${item.type}-${item.id}`} item={item} index={index} />)}</div> : <div className="empty-state"><h2>No catalog credits</h2><p>No matching movie or TV records are available.</p></div>}

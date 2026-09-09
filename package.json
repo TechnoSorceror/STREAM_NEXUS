@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "start": "node --env-file-if-exists=.env.local server.mjs",
+    "start:prod": "npm run build && npm start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "seo:test": "node scripts/seo-check.mjs",

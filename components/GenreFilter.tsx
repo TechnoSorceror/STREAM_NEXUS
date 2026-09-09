@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { tmdbService } from '../services/tmdb';
 import { Link } from 'react-router-dom';
 import { getGenreLandingByName } from '../lib/catalog';
+import { useReducedMotion } from 'motion/react';
 
 interface Props {
   type: 'movie' | 'tv';
@@ -14,6 +15,7 @@ const GenreFilter: React.FC<Props> = ({ type, selectedGenreId, onSelectGenre }) 
   const [genres, setGenres] = useState<{ id: number; name: string }[]>([]);
   const [edges, setEdges] = useState({ left: false, right: true });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     let active = true;
@@ -39,7 +41,7 @@ const GenreFilter: React.FC<Props> = ({ type, selectedGenreId, onSelectGenre }) 
   }, [genres]);
 
   const move = (direction: number) =>
-    scrollRef.current?.scrollBy({ left: direction * Math.min(scrollRef.current.clientWidth * .75, 420), behavior: 'smooth' });
+    scrollRef.current?.scrollBy({ left: direction * Math.min(scrollRef.current.clientWidth * .75, 420), behavior: reduceMotion ? 'instant' : 'smooth' });
 
   if (!genres.length) return null;
 
@@ -52,7 +54,7 @@ const GenreFilter: React.FC<Props> = ({ type, selectedGenreId, onSelectGenre }) 
           const landing = getGenreLandingByName(type, genre.name);
           return landing
             ? <Link className={selectedGenreId === genre.id ? 'active' : ''} key={genre.id} to={`/${type === 'movie' ? 'movies' : 'tv-shows'}/genre/${landing.slug}`}>{genre.name}</Link>
-            : <button className={selectedGenreId === genre.id ? 'active' : ''} key={genre.id} onClick={() => onSelectGenre(genre.id)}>{genre.name}</button>;
+            : <button aria-pressed={selectedGenreId === genre.id} className={selectedGenreId === genre.id ? 'active' : ''} key={genre.id} onClick={() => onSelectGenre(genre.id)}>{genre.name}</button>;
         })}
       </nav>
       {edges.right && <button className="genre-arrow right" onClick={() => move(1)} aria-label="More genres"><ChevronRight size={18} /></button>}

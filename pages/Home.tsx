@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { tmdbService } from '../services/tmdb';
 import { MediaItem } from '../types';
 import Row from '../components/Row';
+import Advertisement from '../components/Advertisement';
 import { getWatchProgressList, removeWatchProgress } from '../lib/watchProgress';
 import { mcuData } from '../src/data/mcu';
 import { addToMyList, isInMyList, removeFromMyList } from '../lib/myList';
@@ -188,6 +189,7 @@ const Home: React.FC = () => {
       )}
 
       <div className="catalog-flow">
+        <Advertisement />
         {catalogWarning && <div className="catalog-warning shell" role="status"><AlertCircle size={17} /><span>{catalogWarning}</span><button onClick={() => setRetryKey(key => key + 1)}><RefreshCcw size={14} /> Retry</button></div>}
         <section className="vibe-section shell">
           <header><div className="eyebrow">Choose your energy</div><h2>What are you in the mood for?</h2></header>
@@ -205,9 +207,11 @@ const Home: React.FC = () => {
         )}
         <Row title="Most watched this week" kicker="The current conversation" items={data.latestMovies.length ? data.latestMovies : data.trendingMovies} featured explorePath="/movies" />
         <Row title="MCU Verse" kicker="Marvel Cinematic Universe timeline" items={mcuItems} featured />
+        <Advertisement />
         <Row title="Series worth the commitment" kicker="Long-form stories" items={data.latestTv.length ? data.latestTv : data.trendingTv} explorePath="/tv-shows" />
         <Row title="Critics' circle" kicker="High scores, low risk" items={data.topRatedMovies} explorePath="/movies?rating=8" />
         <Row title="Action without filler" kicker="Maximum velocity" items={data.actionMovies} explorePath="/movies?genre=28" />
+        <Advertisement />
         <Row title="Other worlds" kicker="Science fiction" items={data.scifiMovies} explorePath="/movies?genre=878" />
         <Row title="The human condition" kicker="Drama" items={data.dramaMovies} explorePath="/movies?genre=18" />
       </div>

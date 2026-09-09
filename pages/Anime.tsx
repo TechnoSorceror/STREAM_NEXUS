@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AlertCircle, ArrowRight, ChevronLeft, ChevronRight, Pause, Play, RefreshCcw, RotateCcw, Sparkles, Star } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { anilistService } from '../services/anilist';
@@ -7,9 +7,11 @@ import { MediaItem } from '../types';
 import Loader from '../components/Loader';
 import MediaCard from '../components/MediaCard';
 import Row from '../components/Row';
+import Advertisement from '../components/Advertisement';
 import Seo, { SITE_NAME, toAbsoluteSiteUrl } from '../components/Seo';
 import { mediaPath } from '../lib/routes';
 import { backdropSrc, backdropSrcSet } from '../lib/images';
+import { filterScore, filterYear, useQueryFilters } from '../lib/useCatalogFilters';
 
 const genres = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mahou Shoujo', 'Mecha', 'Mystery', 'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller'];
 
@@ -18,20 +20,26 @@ const formatNames: Record<string, string> = {
 };
 
 const Anime: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { params: searchParams, updateFilters } = useQueryFilters();
   const [loading, setLoading] = useState(true);
   const [filtering, setFiltering] = useState(false);
   const [data, setData] = useState<Record<string, MediaItem[]>>({});
   const [filtered, setFiltered] = useState<MediaItem[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [genre, setGenre] = useState(searchParams.get('genre') || '');
-  const [format, setFormat] = useState(searchParams.get('format') || '');
-  const [status, setStatus] = useState(searchParams.get('status') || '');
-  const [year, setYear] = useState(searchParams.get('year') || '');
-  const [score, setScore] = useState(Number(searchParams.get('score') || 0));
+  const genre = genres.includes(searchParams.get('genre') || '') ? searchParams.get('genre')! : '';
+  const format = Object.hasOwn(formatNames, searchParams.get('format') || '') ? searchParams.get('format')! : '';
+  const status = ['RELEASING', 'FINISHED', 'NOT_YET_RELEASED'].includes(searchParams.get('status') || '') ? searchParams.get('status')! : '';
+  const year = filterYear(searchParams.get('year') || '');
+  const score = filterScore(searchParams.get('score'), [60, 70, 80, 90]);
+  const setGenre = (value: string) => updateFilters({ genre: value });
+  const setFormat = (value: string) => updateFilters({ format: value });
+  const setStatus = (value: string) => updateFilters({ status: value });
+  const setYear = (value: string) => updateFilters({ year: filterYear(value) });
+  const setScore = (value: number) => updateFilters({ score: value ? String(value) : null });
   const [heroPaused, setHeroPaused] = useState(false);
   const [pageVisible, setPageVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
   const [catalogWarning, setCatalogWarning] = useState('');
+  const [filterWarning, setFilterWarning] = useState('');
   const [retryKey, setRetryKey] = useState(0);
   const reduceMotion = useReducedMotion();
 
@@ -62,20 +70,12 @@ const Anime: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const next: Record<string, string> = {};
-    if (genre) next.genre = genre;
-    if (format) next.format = format;
-    if (status) next.status = status;
-    if (year) next.year = year;
-    if (score) next.score = String(score);
-    setSearchParams(next, { replace: true });
-  }, [genre, format, status, year, score, setSearchParams]);
-
-  useEffect(() => {
-    if (!hasFilters) { setFiltered([]); return; }
+    setFiltered([]);
+    setFilterWarning('');
+    setFiltering(hasFilters);
+    if (!hasFilters) return;
     let active = true;
     const timer = window.setTimeout(async () => {
-      setFiltering(true);
       try {
         const items = await anilistService.browseAnime({
           genre: genre || undefined,
@@ -88,13 +88,13 @@ const Anime: React.FC = () => {
         });
         if (active) setFiltered(items);
       } catch {
-        if (active) setCatalogWarning('The filtered anime catalog could not be loaded. Your previous results remain visible.');
+        if (active) setFilterWarning('The filtered anime catalog could not be loaded. Please try again.');
       } finally {
         if (active) setFiltering(false);
       }
     }, 280);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [genre, format, status, year, score, hasFilters]);
+  }, [genre, format, status, year, score, hasFilters, retryKey]);
 
   const heroItems = useMemo(() => (data.trending || []).filter(item => item.banner).slice(0, 5), [data.trending]);
   const hero = heroItems[heroIndex] || data.trending?.[0];
@@ -119,8 +119,9 @@ const Anime: React.FC = () => {
   };
 
   const clearFilters = () => {
-    setGenre(''); setFormat(''); setStatus(''); setYear(''); setScore(0);
+    updateFilters({ genre: null, format: null, status: null, year: null, score: null });
   };
+  const warning = hasFilters ? filterWarning : catalogWarning;
 
   const hasCatalogData = Object.keys(data).some(key => (data[key]?.length || 0) > 0);
   if (loading && !hasCatalogData) {
@@ -170,18 +171,19 @@ const Anime: React.FC = () => {
         </section>
       )}
 
-      {catalogWarning && <div className="catalog-warning shell" role="status"><AlertCircle size={17} /><span>{catalogWarning}</span><button onClick={() => setRetryKey(key => key + 1)}><RefreshCcw size={14} /> Retry</button></div>}
+      {warning && <div className="catalog-warning shell" role="status"><AlertCircle size={17} /><span>{warning}</span><button onClick={() => setRetryKey(key => key + 1)}><RefreshCcw size={14} /> Retry</button></div>}
 
       <section className="anime-discovery shell">
+        <Advertisement />
         <header className="anime-section-heading">
           <div><div className="eyebrow">Shape your queue</div><h2>Find your next world.</h2><p>Filter the AniList catalog by mood, format, release status, year, and score.</p></div>
           <div className="archive-count">ANILIST POWERED</div>
         </header>
 
         <div className="anime-filter-panel">
-          <div className="anime-genre-strip" aria-label="Anime genres">
-            <button className={!genre ? 'active' : ''} onClick={() => setGenre('')}>All genres</button>
-            {genres.map(item => <button key={item} className={genre === item ? 'active' : ''} onClick={() => setGenre(item)}>{item}</button>)}
+          <div className="anime-genre-strip" role="group" aria-label="Anime genres">
+            <button aria-pressed={!genre} className={!genre ? 'active' : ''} onClick={() => setGenre('')}>All genres</button>
+            {genres.map(item => <button key={item} aria-pressed={genre === item} className={genre === item ? 'active' : ''} onClick={() => setGenre(item)}>{item}</button>)}
           </div>
           <div className="anime-filter-fields">
             <label><span>Format</span><select value={format} onChange={event => setFormat(event.target.value)}><option value="">Every format</option><option value="TV">TV series</option><option value="MOVIE">Movies</option><option value="ONA">ONA</option><option value="OVA">OVA</option><option value="SPECIAL">Specials</option></select></label>
@@ -196,16 +198,18 @@ const Anime: React.FC = () => {
       {hasFilters ? (
         <section className="anime-results shell">
           <div className="anime-results-heading"><div><div className="eyebrow">Filtered collection</div><h2>{genre || (format ? formatNames[format] : 'Selected anime')}</h2></div><span>{filtered.length} matches</span></div>
-          {filtering ? <Loader label="Refining the anime catalog" /> : filtered.length ? <div className="media-grid">{filtered.map((item, index) => <MediaCard key={`anime-${item.id}`} item={item} index={index} />)}</div> : <div className="empty-state"><h2>No anime matched every filter.</h2><p>Try clearing the year or lowering the minimum score.</p></div>}
+          {filtering ? <Loader label="Refining the anime catalog" /> : filtered.length ? <div className="media-grid">{filtered.map((item, index) => <MediaCard key={`anime-${item.id}`} item={item} index={index} />)}</div> : !filterWarning && <div className="empty-state"><h2>No anime matched every filter.</h2><p>Try clearing the year or lowering the minimum score.</p></div>}
         </section>
       ) : (
         <div className="anime-rows">
           <Row title="This season's standouts" kicker="Airing now" items={data.currentSeason} featured />
           <Row title="Latest episodes" kicker="Freshly updated" items={data.latest} />
           <Row title="Anime movies" kicker="Feature-length worlds" items={data.movies} explorePath="/anime?format=MOVIE" />
+          <Advertisement />
           <Row title="Trending across AniList" kicker="The global conversation" items={data.trending} />
           <Row title="All-time favorites" kicker="Most popular" items={data.popular} />
           <Row title="Highest rated" kicker="Community essentials" items={data.topRated} />
+          <Advertisement />
           <Row title="Action" items={data.action} onExplore={() => setGenre('Action')} />
           <Row title="Romance" items={data.romance} onExplore={() => setGenre('Romance')} />
           <Row title="Fantasy" items={data.fantasy} onExplore={() => setGenre('Fantasy')} />

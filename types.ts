@@ -104,7 +104,6 @@ export interface PlaybackState {
   episode: number;
   chapter: number;
   isDub: boolean; // 0 = sub, 1 = dub
-  server: 1 | 2; // 1 = VidSrc SBS, 2 = MultiEmbed
 }
 
 export type WatchStatus = 'watching' | 'plan_to_watch' | 'completed' | 'on_hold' | 'dropped';

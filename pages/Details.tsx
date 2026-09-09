@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { BookOpen, Calendar, Check, ChevronDown, ExternalLink, Layers, Play, Server, Share2, SkipBack, SkipForward, Star, Video } from 'lucide-react';
+import { BookOpen, Calendar, Check, ChevronDown, ExternalLink, Layers, Play, Share2, SkipBack, SkipForward, Star, Video } from 'lucide-react';
 import { MediaItem, PlaybackState, EpisodeInfo, WatchStatus } from '../types';
 import { tmdbService } from '../services/tmdb';
 import { anilistService } from '../services/anilist';
@@ -8,6 +8,7 @@ import { generateEmbedUrl } from '../services/embed';
 import { addToMyList, getMyListStatus, isInMyList, removeFromMyList } from '../lib/myList';
 import { getWatchProgress, saveWatchProgress } from '../lib/watchProgress';
 import Row from '../components/Row';
+import Advertisement from '../components/Advertisement';
 import Loader from '../components/Loader';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Seo, { SITE_NAME, toAbsoluteSiteUrl } from '../components/Seo';
@@ -40,7 +41,7 @@ const Details: React.FC = () => {
   const [watchStatus, setWatchStatus] = useState<WatchStatus>('plan_to_watch');
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [shared, setShared] = useState(false);
-  const [playState, setPlayState] = useState<PlaybackState>({ isPlaying: false, season: 1, episode: 1, chapter: 1, isDub: false, server: 1 });
+  const [playState, setPlayState] = useState<PlaybackState>({ isPlaying: false, season: 1, episode: 1, chapter: 1, isDub: false });
 
   useEffect(() => {
     if (!trailerOpen) return;
@@ -78,7 +79,7 @@ const Details: React.FC = () => {
         setSaved(isInMyList(result.id, result.type));
         setWatchStatus((getMyListStatus(result.id, result.type) as WatchStatus) || 'plan_to_watch');
         const progress = getWatchProgress(result.id, result.type);
-        setPlayState({ isPlaying: false, season: progress?.season ?? result.tmdbSeason ?? 1, episode: progress?.episode ?? 1, chapter: progress?.chapter ?? 1, isDub: false, server: 1 });
+        setPlayState({ isPlaying: false, season: progress?.season ?? result.tmdbSeason ?? 1, episode: progress?.episode ?? 1, chapter: progress?.chapter ?? 1, isDub: false });
         if ((type === 'movie' || type === 'tv') && result.id) setRecommendations(await tmdbService.getRecommendations(Number(result.id), type));
         if (type === 'anime' && result.tmdbId && result.tmdbMediaType) setRecommendations(await tmdbService.getRecommendations(result.tmdbId, result.tmdbMediaType));
         if (type === 'movie' && result.collectionId) setCollection((await tmdbService.getCollection(result.collectionId)).filter(item => item.id !== result!.id));
@@ -210,6 +211,8 @@ const Details: React.FC = () => {
       </section>
 
       <div className="shell detail-content">
+        <Advertisement />
+        <div className="detail-facts-with-ad">
         <section className="detail-summary" aria-labelledby="about-title-heading">
           <div className="section-heading"><div><div className="eyebrow">Title facts</div><h2 id="about-title-heading">About {media.title}</h2></div></div>
           <dl className="fact-grid">
@@ -227,10 +230,13 @@ const Details: React.FC = () => {
           <div className="availability-note"><h3>Viewing information</h3><p>Player availability is checked only after you choose to open it. StreamNexus does not currently verify subscription requirements, licensing, or territory availability.</p></div>
           <p className="source-note">Title metadata is supplied by {media.type === 'anime' || media.type === 'manga' ? 'AniList and, when matched, TMDB' : 'TMDB'}. Playback availability is checked only when you open the player.</p>
         </section>
+        <Advertisement format="tower" />
+        </div>
         {playState.isPlaying && (
           <section className="player-block" ref={playerRef}>
-            <div className="player-toolbar"><div><span className="live-dot" />{media.type === 'movie' || (media.type === 'anime' && media.tmdbMediaType === 'movie') ? 'Now playing' : `${playState.season === 0 ? 'Specials' : `Season ${playState.season}`}, episode ${playState.episode}`}</div><div className="player-controls">{isSeries && <><button onClick={previousEpisode} aria-label="Previous episode"><SkipBack size={16} /></button><button onClick={nextEpisode} aria-label="Next episode"><SkipForward size={16} /></button></>}<div className="server-toggle"><Server size={14} /><button className={playState.server === 1 ? 'active' : ''} onClick={() => setPlayState(s => ({ ...s, server: 1 }))}>A</button><button className={playState.server === 2 ? 'active' : ''} onClick={() => setPlayState(s => ({ ...s, server: 2 }))}>B</button></div>{embedUrl && <button onClick={() => window.open(embedUrl, '_blank', 'noopener,noreferrer')}><ExternalLink size={15} /> New tab</button>}</div></div>
-            <div className="player-frame">{embedUrl ? <iframe key={embedUrl} src={embedUrl} title={`${media.title} player`} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" /> : <div className="empty-state"><Video size={28} /><h2>Source unavailable.</h2></div>}</div>
+            <div className="player-toolbar"><div><span className="live-dot" />{media.type === 'movie' || (media.type === 'anime' && media.tmdbMediaType === 'movie') ? 'Now playing' : `${playState.season === 0 ? 'Specials' : `Season ${playState.season}`}, episode ${playState.episode}`}</div><div className="player-controls">{isSeries && <><button onClick={previousEpisode} aria-label="Previous episode"><SkipBack size={16} /></button><button onClick={nextEpisode} aria-label="Next episode"><SkipForward size={16} /></button></>}{embedUrl && <button onClick={() => window.open(embedUrl, '_blank', 'noopener,noreferrer')}><ExternalLink size={15} /> New tab</button>}</div></div>
+            <div className="player-frame">{embedUrl ? <iframe key={embedUrl} src={embedUrl} title={`${media.title} player`} loading="lazy" referrerPolicy="no-referrer" allowFullScreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media" /> : <div className="empty-state"><Video size={28} /><h2>Source unavailable.</h2></div>}</div>
+            <Advertisement />
           </section>
         )}
 
@@ -240,7 +246,7 @@ const Details: React.FC = () => {
         {recommendations.length > 0 && <Row title="You may also like" kicker="Signal matched" items={recommendations} />}
       </div>
 
-      {trailerOpen && media.trailerUrl && <div className="trailer-overlay" role="dialog" aria-modal="true" aria-labelledby="trailer-title" onKeyDown={trapTrailerFocus} onClick={event => { if (event.target === event.currentTarget) setTrailerOpen(false); }}><div ref={trailerDialogRef} onClick={event => event.stopPropagation()}><h2 id="trailer-title" className="visually-hidden">Trailer for {media.title}</h2><button ref={trailerCloseRef} onClick={() => setTrailerOpen(false)} aria-label="Close trailer">×</button><iframe src={media.trailerUrl} title={`${media.title} trailer`} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" /></div></div>}
+      {trailerOpen && media.trailerUrl && <div className="trailer-overlay" role="dialog" aria-modal="true" aria-labelledby="trailer-title" onKeyDown={trapTrailerFocus} onClick={event => { if (event.target === event.currentTarget) setTrailerOpen(false); }}><div ref={trailerDialogRef} onClick={event => event.stopPropagation()}><h2 id="trailer-title" className="visually-hidden">Trailer for {media.title}</h2><button ref={trailerCloseRef} onClick={() => setTrailerOpen(false)} aria-label="Close trailer">×</button><iframe src={media.trailerUrl} title={`${media.title} trailer`} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" /></div></div>}
     </div>
   );
 };

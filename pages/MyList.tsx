@@ -3,6 +3,7 @@ import { Bookmark, Download, Library, Upload } from 'lucide-react';
 import { exportMyListBackup, getMyList, importMyListBackup, MyListItem, removeFromMyList, setMyListStatus } from '../lib/myList';
 import { WatchStatus } from '../types';
 import MediaCard from '../components/MediaCard';
+import Advertisement from '../components/Advertisement';
 import Seo, { SITE_NAME } from '../components/Seo';
 
 const filters: { value: WatchStatus | 'all'; label: string }[] = [
@@ -62,15 +63,15 @@ const MyList: React.FC = () => {
         <div className="library-actions">
           <button className="button button-quiet" onClick={exportBackup} disabled={!items.length}><Download size={16} /> Export backup</button>
           <button className="button button-quiet" onClick={() => importInput.current?.click()}><Upload size={16} /> Import backup</button>
-          <input ref={importInput} className="visually-hidden" type="file" accept="application/json,.json" onChange={importBackup} />
+          <input ref={importInput} className="visually-hidden" type="file" aria-label="Import library backup" tabIndex={-1} accept="application/json,.json" onChange={importBackup} />
         </div>
       </header>
+      <Advertisement />
       {message && <p className="library-message" role="status" aria-live="polite">{message}</p>}
-      <div className="status-tabs" role="tablist" aria-label="Watch status">{filters.map(item => <button role="tab" aria-selected={filter === item.value} className={filter === item.value ? 'active' : ''} key={item.value} onClick={() => setFilter(item.value)}>{item.label}<span>{items.filter(entry => item.value === 'all' || entry.watchStatus === item.value).length}</span></button>)}</div>
+      <div className="status-tabs" role="group" aria-label="Watch status">{filters.map(item => <button type="button" aria-pressed={filter === item.value} className={filter === item.value ? 'active' : ''} key={item.value} onClick={() => setFilter(item.value)}>{item.label}<span>{items.filter(entry => item.value === 'all' || entry.watchStatus === item.value).length}</span></button>)}</div>
       {visible.length ? <div className="media-grid">{visible.map((item, index) => <MediaCard key={`${item.type}-${item.id}`} item={item} index={index} watchStatus={item.watchStatus || 'plan_to_watch'} onWatchStatusChange={status => setMyListStatus(item.id, item.type, status)} onRemove={event => { event.preventDefault(); removeFromMyList(item.id, item.type); }} />)}</div> : <div className="empty-state"><Bookmark size={30} /><h2>Nothing here yet.</h2><p>Save a title or switch to another status.</p></div>}
     </div>
   );
 };
 
 export default MyList;
-

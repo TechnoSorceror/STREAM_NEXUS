@@ -44,5 +44,11 @@ export default tseslint.config(
     languageOptions: {
       globals: { URL: 'readonly', Request: 'readonly', Response: 'readonly', console: 'readonly' },
     },
+  },
+  {
+    files: ['server.mjs'],
+    languageOptions: {
+      globals: { URL: 'readonly', Request: 'readonly', Response: 'readonly', Headers: 'readonly', console: 'readonly', process: 'readonly' },
+    },
   }
 );

@@ -38,3 +38,4 @@ NUL
 
 .vercel
 .env*
+!.env.example

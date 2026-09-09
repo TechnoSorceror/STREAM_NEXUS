@@ -18,6 +18,7 @@ const MediaCard: React.FC<Props> = ({ item, index = 0, onRemove, watchStatus, on
   const [saved, setSaved] = useState(() => isInMyList(item.id, item.type));
   useEffect(() => {
     const refresh = () => setSaved(isInMyList(item.id, item.type));
+    refresh();
     window.addEventListener('streamnexus:list-change', refresh);
     window.addEventListener('storage', refresh);
     return () => {
@@ -27,7 +28,7 @@ const MediaCard: React.FC<Props> = ({ item, index = 0, onRemove, watchStatus, on
   }, [item.id, item.type]);
   const status = item.progress
     ? item.type === 'tv' || item.type === 'anime'
-      ? `S${item.progress.season || 1} E${item.progress.episode || 1}`
+      ? `S${item.progress.season ?? 1} E${item.progress.episode ?? 1}`
       : item.type === 'manga'
         ? `Chapter ${item.progress.chapter || 1}`
         : 'Resume'
@@ -38,7 +39,7 @@ const MediaCard: React.FC<Props> = ({ item, index = 0, onRemove, watchStatus, on
   const toggleSaved = () => {
     if (saved) removeFromMyList(item.id, item.type);
     else addToMyList(item);
-    setSaved(!saved);
+    setSaved(isInMyList(item.id, item.type));
   };
 
   return (
@@ -63,14 +64,14 @@ const MediaCard: React.FC<Props> = ({ item, index = 0, onRemove, watchStatus, on
           <X size={15} />
         </button>
       ) : (
-        <button className={`save-card ${saved ? 'is-saved' : ''}`} onClick={toggleSaved} aria-label={`${saved ? 'Remove' : 'Add'} ${item.title} ${saved ? 'from' : 'to'} my list`}>
+        <button type="button" className={`save-card ${saved ? 'is-saved' : ''}`} onClick={toggleSaved} aria-pressed={saved} aria-label={`${saved ? 'Remove' : 'Add'} ${item.title} ${saved ? 'from' : 'to'} my list`}>
           {saved ? <Check size={15} /> : <Bookmark size={15} />}
         </button>
       )}
       {watchStatus && onWatchStatusChange && (
         <label className="card-status-control">
           <span>Watch status</span>
-          <select value={watchStatus} onChange={event => onWatchStatusChange(event.target.value as WatchStatus)}>
+          <select aria-label={`Watch status for ${item.title}`} value={watchStatus} onChange={event => onWatchStatusChange(event.target.value as WatchStatus)}>
             <option value="watching">Watching</option>
             <option value="plan_to_watch">Up next</option>
             <option value="completed">Finished</option>

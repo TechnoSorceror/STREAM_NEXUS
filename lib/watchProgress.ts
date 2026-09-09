@@ -12,9 +12,9 @@ const WATCH_PROGRESS_KEY = 'streamnexus_watch_progress';
 
 export const getWatchProgressList = (): WatchProgress[] => {
   if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(WATCH_PROGRESS_KEY);
-  if (!stored) return [];
   try {
+    const stored = localStorage.getItem(WATCH_PROGRESS_KEY);
+    if (!stored) return [];
     const list: WatchProgress[] = JSON.parse(stored);
     // Sort by most recently updated/watched first
     return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());

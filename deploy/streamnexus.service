@@ -1,0 +1,19 @@
+[Unit]
+Description=StreamNexus self-hosted web application
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=arhan
+WorkingDirectory=/home/arhan/STREAM_NEXUS
+Environment=NODE_ENV=production
+EnvironmentFile=/home/arhan/STREAM_NEXUS/.env.local
+ExecStart=/bin/npm start
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

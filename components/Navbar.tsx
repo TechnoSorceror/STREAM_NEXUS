@@ -55,7 +55,8 @@ const Navbar: React.FC = () => {
         event.preventDefault();
         setSearchOpen(true);
       }
-      if (event.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((event.target as HTMLElement)?.tagName)) {
+      const target = event.target as HTMLElement | null;
+      if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && !target?.isContentEditable && !['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName || '')) {
         event.preventDefault();
         setSearchOpen(true);
       }
@@ -82,14 +83,15 @@ const Navbar: React.FC = () => {
   }, [searchOpen]);
 
   useEffect(() => {
-    if (!query.trim()) {
+    setSuggestions([]);
+    if (!searchOpen || !query.trim()) {
       setSuggestions([]);
       setSearching(false);
       return;
     }
+    setSearching(true);
     let live = true;
     const timer = window.setTimeout(async () => {
-      setSearching(true);
       try {
         const type = searchType();
         const result = type === 'media'
@@ -108,7 +110,7 @@ const Navbar: React.FC = () => {
       live = false;
       window.clearTimeout(timer);
     };
-  }, [query, searchType]);
+  }, [query, searchType, searchOpen]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -216,7 +218,7 @@ const Navbar: React.FC = () => {
                 <button type="button" onClick={() => setSearchOpen(false)} aria-label="Close search"><X size={18} /></button>
               </form>
 
-              <div className="command-body">
+              <div className="command-body" aria-busy={searching}>
                 {!query.trim() ? (
                   <div className="search-empty">
                     <span><Sparkles size={18} /></span>

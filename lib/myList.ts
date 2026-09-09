@@ -74,9 +74,9 @@ const writeMyList = (items: MyListItem[]) => {
 
 export const getMyList = (): MyListItem[] => {
   if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(MY_LIST_KEY);
-  if (!stored) return [];
   try {
+    const stored = localStorage.getItem(MY_LIST_KEY);
+    if (!stored) return [];
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed) ? parsed.map(normalizeItem).filter((item): item is MyListItem => Boolean(item)).slice(0, MAX_ITEMS) : [];
   } catch {
@@ -135,4 +135,3 @@ export const importMyListBackup = (raw: string) => {
   writeMyList([...unique.values()]);
   return unique.size;
 };
-
