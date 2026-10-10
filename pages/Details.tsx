@@ -141,8 +141,17 @@ const Details: React.FC = () => {
   }, [canonicalPath, media]);
   const start = () => { setPlayState(state => ({ ...state, isPlaying: true })); window.setTimeout(() => playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80); };
   const selectEpisode = (episode: number) => { setPlayState(state => ({ ...state, episode, isPlaying: true })); window.setTimeout(() => playerRef.current?.scrollIntoView({ behavior: 'smooth' }), 80); };
-  const nextEpisode = () => { const index = episodes.findIndex(ep => ep.episode_number === playState.episode); if (index >= 0 && index < episodes.length - 1) selectEpisode(episodes[index + 1].episode_number); else if ((media?.seasons || 0) > playState.season) setPlayState(s => ({ ...s, season: s.season + 1, episode: 1 })); };
-  const previousEpisode = () => { const index = episodes.findIndex(ep => ep.episode_number === playState.episode); if (index > 0) selectEpisode(episodes[index - 1].episode_number); };
+  const nextEpisode = () => {
+    const index = episodes.findIndex(ep => ep.episode_number === playState.episode);
+    if (index >= 0 && index < episodes.length - 1) selectEpisode(episodes[index + 1].episode_number);
+    else if (index < 0 && media?.type === 'anime' && (!media.episodes || playState.episode < media.episodes)) selectEpisode(playState.episode + 1);
+    else if ((media?.seasons || 0) > playState.season) setPlayState(s => ({ ...s, season: s.season + 1, episode: 1 }));
+  };
+  const previousEpisode = () => {
+    const index = episodes.findIndex(ep => ep.episode_number === playState.episode);
+    if (index > 0) selectEpisode(episodes[index - 1].episode_number);
+    else if (index < 0 && media?.type === 'anime' && playState.episode > 1) selectEpisode(playState.episode - 1);
+  };
   const share = async () => {
     const data = { title: media?.title || 'StreamNexus', text: `Explore ${media?.title || 'this title'} on StreamNexus`, url: window.location.href };
     try {
@@ -167,8 +176,8 @@ const Details: React.FC = () => {
   if (loading) return <Loader page label="Loading title" />;
   if (!media) return <div className="empty-state detail-missing"><Seo title={`Title not found | ${SITE_NAME}`} description="The requested title could not be found." robots="noindex,follow" /><h1>Title unavailable</h1><p>The source returned no usable metadata.</p><Link to="/">Return home</Link></div>;
 
-  const isSeries = media.type === 'tv' || (media.type === 'anime' && media.tmdbMediaType === 'tv');
-  const hasPlaybackSource = media.type === 'movie' || media.type === 'tv' || (media.type === 'anime' && Boolean(media.tmdbId));
+  const isSeries = media.type === 'tv' || (media.type === 'anime' && media.format !== 'MOVIE' && media.format !== 'MUSIC');
+  const hasPlaybackSource = Boolean(embedUrl);
   const year = media.releaseDate?.slice(0, 4);
   const kindLabel = media.type === 'movie' ? 'Movie' : media.type === 'tv' ? 'TV Show' : media.type === 'anime' ? 'Anime' : 'Manga';
   const seoTitle = media.type === 'movie'
@@ -204,7 +213,7 @@ const Details: React.FC = () => {
               {media.trailerUrl && <button className="button button-quiet" onClick={() => setTrailerOpen(true)}><Video size={17} /> Trailer</button>}
               <button className="button button-icon" onClick={share} aria-label="Share this title">{shared ? <Check size={17} /> : <Share2 size={17} />}</button>
             </div>
-            {media.type === 'anime' && !media.tmdbId && <p className="anime-match-note">AniList metadata loaded, but this title could not be matched confidently to TMDB for episodes and playback.</p>}
+            {media.type === 'anime' && !media.tmdbId && <p className="anime-match-note">TMDB episode details are unavailable for this title. The player uses its AniList ID.</p>}
             {saved && <label className="status-select"><span>Status</span><select value={watchStatus} onChange={event => { const value = event.target.value as WatchStatus; setWatchStatus(value); addToMyList(media, value); }}>{statuses.map(status => <option value={status.value} key={status.value}>{status.label}</option>)}</select><ChevronDown size={15} /></label>}
           </div>
         </div>
@@ -234,7 +243,7 @@ const Details: React.FC = () => {
         </div>
         {playState.isPlaying && (
           <section className="player-block" ref={playerRef}>
-            <div className="player-toolbar"><div><span className="live-dot" />{media.type === 'movie' || (media.type === 'anime' && media.tmdbMediaType === 'movie') ? 'Now playing' : `${playState.season === 0 ? 'Specials' : `Season ${playState.season}`}, episode ${playState.episode}`}</div><div className="player-controls">{isSeries && <><button onClick={previousEpisode} aria-label="Previous episode"><SkipBack size={16} /></button><button onClick={nextEpisode} aria-label="Next episode"><SkipForward size={16} /></button></>}{embedUrl && <button onClick={() => window.open(embedUrl, '_blank', 'noopener,noreferrer')}><ExternalLink size={15} /> New tab</button>}</div></div>
+            <div className="player-toolbar"><div><span className="live-dot" />{!isSeries ? 'Now playing' : `${playState.season === 0 ? 'Specials' : `Season ${playState.season}`}, episode ${playState.episode}`}</div><div className="player-controls">{isSeries && <><button onClick={previousEpisode} aria-label="Previous episode"><SkipBack size={16} /></button><button onClick={nextEpisode} aria-label="Next episode"><SkipForward size={16} /></button></>}{embedUrl && <button onClick={() => window.open(embedUrl, '_blank', 'noopener,noreferrer')}><ExternalLink size={15} /> New tab</button>}</div></div>
             <div className="player-frame">{embedUrl ? <iframe key={embedUrl} src={embedUrl} title={`${media.title} player`} loading="lazy" referrerPolicy="no-referrer" allowFullScreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media" /> : <div className="empty-state"><Video size={28} /><h2>Source unavailable.</h2></div>}</div>
             <Advertisement />
           </section>

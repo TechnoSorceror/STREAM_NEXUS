@@ -4,4 +4,4 @@ export const TMDB_BACKDROP_BASE = 'https://image.tmdb.org/t/p/w1280';
 
 export const ANILIST_API_URL = 'https://graphql.anilist.co';
 
-export const VIDSRC_BASE = 'https://vidsrc.sh/embed';
+export const FILMU_EMBED_BASE = 'https://embed.filmu.in';

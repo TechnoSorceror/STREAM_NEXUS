@@ -1,4 +1,4 @@
-import { VIDSRC_BASE } from '../constants';
+import { FILMU_EMBED_BASE } from '../constants';
 import { MediaItem, PlaybackState } from '../types';
 
 export const generateEmbedUrl = (media: MediaItem, state: PlaybackState): string | null => {
@@ -10,24 +10,18 @@ export const generateEmbedUrl = (media: MediaItem, state: PlaybackState): string
   switch (type) {
     case 'movie':
       if (!tmdbId) return null;
-      return `${VIDSRC_BASE}/movie/${tmdbId}`;
+      return `${FILMU_EMBED_BASE}/movie/${tmdbId}`;
 
     case 'tv':
       if (!tmdbId) return null;
-      return `${VIDSRC_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
+      return `${FILMU_EMBED_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
 
     case 'anime':
-      if (!tmdbId) return null;
-      if (media.tmdbMediaType === 'movie') {
-        return `${VIDSRC_BASE}/movie/${tmdbId}`;
-      }
-      return `${VIDSRC_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
-
-    case 'manga': {
-      // Manga is not affected by server selection
       if (!anilistId) return null;
+      return `${FILMU_EMBED_BASE}/anime/${anilistId}/${selectedSeason}/${selectedEpisode}`;
+
+    case 'manga':
       return null;
-    }
 
     default:
       return null;
