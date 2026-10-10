@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Heart } from 'lucide-react';
 import Advertisement from './Advertisement';
 
-const BREAK_INTERVAL_MS = 10 * 60 * 1000;
+const BREAK_INTERVAL_MS = 30 * 60 * 1000;
 const BREAK_DURATION_SECONDS = 10;
-const MAX_BREAKS_PER_SESSION = 8;
+const MAX_BREAKS_PER_SESSION = 4;
 const COUNT_KEY = 'streamnexus_sponsor_break_count';
-const NEXT_BREAK_KEY = 'streamnexus_sponsor_break_next_at';
+const NEXT_BREAK_KEY = 'streamnexus_sponsor_break_next_at_v2';
 
 const readSessionNumber = (key: string) => {
   if (typeof window === 'undefined') return 0;

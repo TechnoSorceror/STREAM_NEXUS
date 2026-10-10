@@ -1,4 +1,4 @@
-import { VIDSRC_SBS_BASE } from '../constants';
+import { VIDSRC_BASE } from '../constants';
 import { MediaItem, PlaybackState } from '../types';
 
 export const generateEmbedUrl = (media: MediaItem, state: PlaybackState): string | null => {
@@ -10,18 +10,18 @@ export const generateEmbedUrl = (media: MediaItem, state: PlaybackState): string
   switch (type) {
     case 'movie':
       if (!tmdbId) return null;
-      return `${VIDSRC_SBS_BASE}/movie/${tmdbId}`;
+      return `${VIDSRC_BASE}/movie/${tmdbId}`;
 
     case 'tv':
       if (!tmdbId) return null;
-      return `${VIDSRC_SBS_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
+      return `${VIDSRC_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
 
     case 'anime':
       if (!tmdbId) return null;
       if (media.tmdbMediaType === 'movie') {
-        return `${VIDSRC_SBS_BASE}/movie/${tmdbId}`;
+        return `${VIDSRC_BASE}/movie/${tmdbId}`;
       }
-      return `${VIDSRC_SBS_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
+      return `${VIDSRC_BASE}/tv/${tmdbId}/${selectedSeason}/${selectedEpisode}`;
 
     case 'manga': {
       // Manga is not affected by server selection
