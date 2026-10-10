@@ -243,8 +243,9 @@ const Details: React.FC = () => {
         </div>
         {playState.isPlaying && (
           <section className="player-block" ref={playerRef}>
-            <div className="player-toolbar"><div><span className="live-dot" />{!isSeries ? 'Now playing' : `${playState.season === 0 ? 'Specials' : `Season ${playState.season}`}, episode ${playState.episode}`}</div><div className="player-controls">{isSeries && <><button onClick={previousEpisode} aria-label="Previous episode"><SkipBack size={16} /></button><button onClick={nextEpisode} aria-label="Next episode"><SkipForward size={16} /></button></>}{embedUrl && <button onClick={() => window.open(embedUrl, '_blank', 'noopener,noreferrer')}><ExternalLink size={15} /> New tab</button>}</div></div>
-            <div className="player-frame">{embedUrl ? <iframe key={embedUrl} src={embedUrl} title={`${media.title} player`} loading="lazy" referrerPolicy="no-referrer" allowFullScreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media" /> : <div className="empty-state"><Video size={28} /><h2>Source unavailable.</h2></div>}</div>
+            <div className="player-toolbar"><div><span className="live-dot" />{!isSeries ? 'Now playing' : `${playState.season === 0 ? 'Specials' : `Season ${playState.season}`}, episode ${playState.episode}`}</div><div className="player-controls">{isSeries && <><button onClick={previousEpisode} aria-label="Previous episode"><SkipBack size={16} /></button><button onClick={nextEpisode} aria-label="Next episode"><SkipForward size={16} /></button></>}{embedUrl && <a href={embedUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> Open directly</a>}</div></div>
+            <div className="player-frame">{embedUrl ? <iframe key={embedUrl} src={embedUrl} title={`${media.title} player`} allowFullScreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media" /> : <div className="empty-state"><Video size={28} /><h2>Source unavailable.</h2></div>}</div>
+            {embedUrl && <p className="player-help">If the embedded player stays blank or reports a sandbox error, <a href={embedUrl} target="_blank" rel="noopener noreferrer">open it directly</a>.</p>}
             <Advertisement />
           </section>
         )}

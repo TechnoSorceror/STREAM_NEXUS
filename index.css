@@ -352,10 +352,12 @@ kbd { padding: 3px 7px; color: var(--muted); background: rgba(255, 255, 255, .07
 .player-toolbar > div:first-child { display: flex; align-items: center; gap: 8px; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 14px var(--cyan); }
 .player-controls { display: flex; align-items: center; gap: 7px; }
-.player-controls > button { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; color: var(--muted); background: var(--base); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
-.player-controls > button:hover { color: var(--text); border-color: var(--accent); }
+.player-controls > button, .player-controls > a { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; color: var(--muted); background: var(--base); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; text-decoration: none; }
+.player-controls > button:hover, .player-controls > a:hover { color: var(--text); border-color: var(--accent); }
 .player-frame { aspect-ratio: 16/9; overflow: hidden; background: #03040a; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 15px 15px; box-shadow: var(--shadow); }
 .player-frame iframe { width: 100%; height: 100%; border: 0; }
+.player-help { margin: 10px 2px 0; color: var(--muted); font-size: 13px; }
+.player-help a { color: var(--cyan); }
 .episodes-section, .chapters-section { margin-top: 88px; }
 .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 24px; }
 .episode-list { border-top: 1px solid var(--line); }
