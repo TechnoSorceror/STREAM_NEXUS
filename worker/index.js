@@ -10,6 +10,13 @@ const NOINDEX_ROBOTS = 'noindex,follow';
 const TRACKING_PARAMS = /^(utm_.+|gclid|dclid|fbclid|msclkid|ref|source)$/i;
 const UPSTREAM_TIMEOUT_MS = 8_000;
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const BANNER_UNITS = {
+  leaderboard: { key: '1073b4789aa3061d60eece58c124a1bf', width: 728, height: 90 },
+  horizontal: { key: '71d4eca23afbaee74e46e80d08972d66', width: 468, height: 60 },
+  mobile: { key: '2605b3913125b7dda28fda6f5658e3ec', width: 320, height: 50 },
+  rectangle: { key: 'da6d12386491f727278471211858b88b', width: 300, height: 250 },
+  tower: { key: 'aad5ff5fb14bd47a9feae2802ca2d63e', width: 160, height: 300 }
+};
 
 const GENRES = [
   { type: 'movie', id: 28, slug: 'action', name: 'Action', title: 'Action movies', intro: 'Browse action films built around chases, combat, rescues, and high-stakes missions. Each title links to its story summary, release details, trailer, and viewing options.' },
@@ -75,6 +82,19 @@ const securityHeaders = (contentType = 'text/html; charset=UTF-8') => ({
 
 const response = (body, status = 200, headers = {}) => new Response(body, { status, headers: { ...securityHeaders(), ...headers } });
 const textResponse = (body, contentType, headers = {}) => new Response(body, { headers: { ...securityHeaders(contentType), ...headers } });
+
+const bannerFrame = size => {
+  const unit = BANNER_UNITS[size];
+  if (!unit) return response('Banner not found', 404, { 'Content-Type': 'text/plain; charset=UTF-8', 'X-Robots-Tag': 'noindex, nofollow' });
+  const options = { key: unit.key, format: 'iframe', height: unit.height, width: unit.width, params: {} };
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer-when-downgrade"><title>Advertisement</title><style>html,body{margin:0;padding:0;overflow:hidden;background:#080912}iframe{border:0}</style></head><body><script>window.atOptions=${JSON.stringify(options)};</script><script src="https://www.highrevenueformat.com/${unit.key}/invoke.js"></script></body></html>`;
+  return new Response(html, { headers: {
+    ...securityHeaders(),
+    'Cache-Control': 'no-store',
+    'X-Robots-Tag': 'noindex, nofollow',
+    'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https:; img-src https: data:; style-src 'unsafe-inline' https:; connect-src https:; frame-src https: about:; form-action https:; frame-ancestors 'self'"
+  } });
+};
 
 const tmdbHeaders = env => env.TMDB_BEARER_TOKEN
   ? { Authorization: `Bearer ${env.TMDB_BEARER_TOKEN}`, Accept: 'application/json' }
@@ -440,6 +460,7 @@ const worker = {
     const url = new URL(request.url);
     const origin = configuredOrigin(request, env);
     if (url.pathname.startsWith('/api/tmdb/')) return proxyTmdb(request, env);
+    if (url.pathname.startsWith('/ad-frame/')) return bannerFrame(url.pathname.slice('/ad-frame/'.length));
 
     const normalizedPath = cleanPath(url.pathname.toLowerCase());
     const normalizedParams = new URLSearchParams(url.search);

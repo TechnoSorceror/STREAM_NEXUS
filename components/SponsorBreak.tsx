@@ -145,7 +145,7 @@ const SponsorBreak: React.FC = () => {
           </div>
         </header>
 
-        <div className="sponsor-break__ad"><Advertisement className="sn-ad-slot--break" /></div>
+        <div className="sponsor-break__ad"><Advertisement format="rectangle" className="sn-ad-slot--break" /></div>
 
         <footer className="sponsor-break__footer">
           {secondsRemaining > 0 ? (

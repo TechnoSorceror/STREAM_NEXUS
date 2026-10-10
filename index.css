@@ -619,6 +619,7 @@ kbd { padding: 3px 7px; color: var(--muted); background: rgba(255, 255, 255, .07
 .sn-ad-slot__label { margin-bottom: 8px; color: #b9bac8; font: 500 10px var(--font-mono); text-transform: uppercase; letter-spacing: 0; }
 .sn-ad-slot > iframe { display: block; flex-shrink: 0; border: 0; }
 .sn-ad-slot--tower { min-height: 352px; }
+.sn-ad-slot--rectangle { min-height: 302px; }
 .sn-ad-slot--native { min-height: 180px; }
 .sn-ad-slot--native > div { width: 100%; }
 .detail-facts-with-ad { display: grid; grid-template-columns: minmax(0, 1fr) 160px; align-items: start; gap: 32px; }
